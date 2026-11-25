@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mapa de flujo CineStarBD — dark</title>
+<style>
+@page { size: letter; margin: 0.15in; }
+@page land { size: letter landscape; margin: 0.15in; }
+html, body {
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 9.5pt;
+  line-height: 1.35;
+}
+h1, h2, h3 { color: #79c0ff; margin: 12px 0 6px 0; break-after: avoid; }
+h1 { font-size: 15pt; }
+h2 { font-size: 12pt; }
+h3 { font-size: 10.5pt; }
+blockquote { color: #8b949e; border-left: 3px solid #30363d; padding-left: 8px; margin: 6px 0; }
+code { background: #161b22; color: #a5d6ff; }
+pre { background: #161b22; border: 1px solid #30363d; padding: 6px; white-space: pre-wrap; break-inside: avoid; }
+table { border-collapse: collapse; width: 100%; font-size: 8pt; }
+th, td { border: 1px solid #30363d; padding: 3px 4px; text-align: left; vertical-align: top; }
+th { background: #161b22; color: #79c0ff; }
+tr { break-inside: avoid; }
+.mermaid {
+  background: #0d1117;
+  margin: 8px 0 14px 0;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.mermaid svg { max-width: 100%; height: auto; }
+.wide { page: land; break-before: page; break-after: page; break-inside: avoid; }
+a { color: #58a6ff; }
+hr { border: 0; border-top: 1px solid #30363d; }
+@media screen {
+  .wide .mermaid { overflow-x: auto; overflow-y: hidden; text-align: left; border: 1px solid #30363d; }
+  .wide .mermaid svg { width: 2800px; max-width: none; height: auto; }
+}
+@media print {
+  .wide .mermaid { break-inside: avoid; }
+  .wide .mermaid svg { width: 1020px; height: 640px; max-width: none; }
+}
+</style>
+</head>
+<body>
+<h1>Mapa de flujo y llamadas — CineStarBD</h1>
+<blockquote>
+<p>Cómo se ocupan unas a otras las funciones, tanto <strong>dentro de un mismo archivo</strong> como <strong>entre archivos</strong>.
+Los diagramas están en Mermaid: se renderizan automáticamente en GitHub, VS Code (extensión Mermaid) o cualquier visor Markdown.
+Referencias: <code>Program.cs</code>, <code>Dominio\*.cs</code>, <code>Presentacion\FormCine.cs</code>, <code>Presentacion\FormCine.Designer.cs</code>.</p>
+</blockquote>
+<hr />
+<h2>1. Mapa de dependencias entre archivos (quién conoce a quién)</h2>
+<div class="mermaid">
+%%{init: {'flowchart': {'nodeSpacing': 80, 'rankSpacing': 110, 'curve': 'basis'}}}%%
+flowchart TD
+    P["Program.cs<br/>Main()"]
+    DS["FormCine.Designer.cs<br/>InitializeComponent()"]
+    F["FormCine.cs<br/>logica de pantalla"]
+
+    subgraph CAL["Dominio — calculo"]
+        direction TB
+        CA["CatalogoCine.cs<br/>catalogo y reglas"]
+        VC["VentaCine.cs<br/>entidad + calculos puros"]
+    end
+
+    subgraph DAT["Dominio — datos"]
+        direction TB
+        VD["VentaDAO.cs<br/>CRUD + metricas"]
+        CB["ConexionBD.cs<br/>cadena + SqlConnection"]
+    end
+
+    DB[("CineStarDB.dbo.Ventas<br/>SQL Express .SQLEXPRESS")]
+    SQL["BDcines/scriptsSql<br/>01 estructura / 02 demo"]
+    BAT["BDcines/comandos<br/>7 .bat"]
+
+    P -->|"new FormCine()"| F
+    DS -->|"InitializeComponent()"| F
+    DS -.->|"cablea 13 eventos"| F
+    F -->|"DatosVenta / Calcular"| CA
+    CA -->|"new VentaCine(...)"| VC
+    F -->|"7 metodos publicos"| VD
+    VD -->|"ObtenerConexion()"| CB
+    F -->|"ProbarConexion()"| CB
+    CB -->|"Open()"| DB
+    VD -->|"SELECT / INSERT / UPDATE / DELETE"| DB
+    SQL -->|"DDL + demo"| DB
+    BAT -->|"operaciones"| DB
+
+    classDef ui fill:#e3f2fd,stroke:#1565c0,color:#0d47a1;
+    classDef dom fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+    classDef data fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+    class P,F,DS ui;
+    class CA,VC,VD,CB dom;
+    class SQL,BAT,DB data;
+
+</div>
+<p><strong>Regla de oro:</strong> <code>FormCine</code> nunca abre una conexión. Todo pasa por <code>VentaDAO</code> → <code>ConexionBD</code>. <code>CatalogoCine</code> y <code>VentaCine</code> no conocen ni WinForms ni SQL.</p>
+<hr />
+<h2>2. Grafo de llamadas dentro de <code>FormCine.cs</code> (mismo archivo)</h2>
+<p>Para que las flechas no se apelotonen, el grafo se divide en tres momentos. Todos usan <code>nodeSpacing</code>/<code>rankSpacing</code> amplios y curva <code>basis</code>, que abre ángulo entre las líneas.</p>
+<h3>2.1 Carga inicial</h3>
+<div class="mermaid">
+%%{init: {'flowchart': {'nodeSpacing': 90, 'rankSpacing': 110, 'curve': 'basis'}}}%%
+flowchart TD
+    CTOR["FormCine() ctor"]
+    LOAD["FormCine_Load"]
+    RESET["ReiniciarResumen()"]
+    HELP["ConfigurarAyuda()"]
+    BIND["Vincular() x6"]
+    GRID["CargarVentas()"]
+    COLS["ConfigurarColumnasGrilla()"]
+    TITLE["Titulo() x8"]
+    METR["ActualizarMetricas()"]
+    STATUS["MostrarEstado()"]
+
+    CTOR --> LOAD
+    LOAD --> RESET
+    LOAD --> HELP
+    HELP --> BIND
+    BIND --> STATUS
+    LOAD --> GRID
+    GRID --> COLS
+    COLS --> TITLE
+    LOAD --> METR
+    LOAD --> STATUS
+    GRID --> STATUS
+    METR --> STATUS
+
+</div>
+<h3>2.2 Cálculo en vivo</h3>
+<div class="mermaid">
+%%{init: {'flowchart': {'nodeSpacing': 100, 'rankSpacing': 120, 'curve': 'basis'}}}%%
+flowchart TD
+    CHANGED["Calculo_Changed<br/>4 eventos del Designer"]
+    BUILD["ConstruirVenta()"]
+    SHOW["MostrarResumen()"]
+    EXT["Va a Dominio:<br/>CatalogoCine.Calcular → VentaCine"]
+
+    CHANGED --> BUILD
+    CHANGED --> SHOW
+    BUILD --> EXT
+
+</div>
+<blockquote>
+<p>El salto a Dominio se detalla en el apartado 3.1.</p>
+</blockquote>
+<section class="wide"><h3>2.3 Acciones del usuario (botones y grilla)</h3>
+<blockquote>
+<p>Diagrama <strong>horizontal y ampliado</strong>. En el visor Markdown se recorre con la barra de desplazamiento lateral; en el PDF ocupa una página apaisada para que se lea grande.</p>
+</blockquote>
+<div class="mermaid">
+%%{init: {'flowchart': {'nodeSpacing': 140, 'rankSpacing': 180, 'curve': 'basis'}, 'themeVariables': {'fontSize': '16px'}}}%%
+flowchart LR
+    subgraph ESCRITURA["Escritura en BD"]
+        direction TB
+        REG["BtnRegistrar_Click"]
+        UPD["btnActualizar_Click"]
+        DEL["btnEliminar_Click"]
+    end
+    subgraph LECTURA["Lectura / UI"]
+        direction TB
+        ALL["btnTodos_Click"]
+        TEST["btnProbarConexion_Click"]
+        SEARCH["txtBuscar_TextChanged"]
+        CELL["dgvVentas_CellClick"]
+    end
+
+    VALID["DatosValidos()"]
+    BUILD["ConstruirVenta()"]
+    SHOW["MostrarResumen()"]
+    CLEAR["LimpiarFormulario()"]
+    RESET["ReiniciarResumen()"]
+    GRID["CargarVentas()"]
+    METR["ActualizarMetricas()"]
+    COLS["ConfigurarColumnasGrilla()"]
+    FILL["LlenaForm()"]
+    STATUS["MostrarEstado()"]
+
+    REG --> VALID
+    UPD --> VALID
+    REG --> BUILD
+    UPD --> BUILD
+    REG --> SHOW
+    REG --> CLEAR
+    CLEAR --> RESET
+    DEL --> CLEAR
+    REG --> GRID
+    UPD --> GRID
+    DEL --> GRID
+    REG --> METR
+    UPD --> METR
+    DEL --> METR
+    ALL --> GRID
+    SEARCH --> GRID
+    SEARCH --> COLS
+    CELL --> FILL
+    FILL --> SHOW
+    FILL --> STATUS
+    TEST --> STATUS
+    GRID --> STATUS
+    METR --> STATUS
+
+</div>
+<p><strong>Observación:</strong> <code>MostrarEstado</code> sigue siendo el nodo sumidero, pero al quedar a la derecha y con <code>rankSpacing</code> de 180, las flechas llegan desde ángulos muy distintos en vez de apilarse. <code>CargarVentas</code> y <code>ActualizarMetricas</code> se repiten tras registrar / actualizar / eliminar.</p>
+</section><hr />
+<h2>3. Grafo de llamadas hacia <code>Dominio</code> (entre archivos)</h2>
+<p>Igual que en el apartado 2: dos grafos verticales en vez de uno horizontal, para que cada rama tenga su propio carril.</p>
+<h3>3.1 Dominio — cálculo puro (sin SQL)</h3>
+<div class="mermaid">
+%%{init: {'flowchart': {'nodeSpacing': 90, 'rankSpacing': 110, 'curve': 'basis'}}}%%
+flowchart TD
+    CH["FormCine.ConstruirVenta()"]
+    CALC["CatalogoCine.Calcular(datos)"]
+    GP["CatalogoCine.ObtenerPeliculas()"]
+    GC["CatalogoCine.ObtenerCombos()"]
+    NEW["new VentaCine(...)"]
+    TOT["VentaCine.CalcularTotales()"]
+
+    subgraph PURAS["Metodos puros — se llaman entre si"]
+        direction TB
+        SE["CalcularSubtotalEntradas()"]
+        SS["CalcularSubtotalSnacks()"]
+        DE["CalcularMontoDescuento()"]
+        NE["CalcularNetoAfecto()"]
+        IV["CalcularMontoIVA()"]
+        TO["CalcularTotal()"]
+    end
+
+    CH --> CALC
+    CALC --> NEW
+    NEW --> TOT
+    TOT --> SE
+    TOT --> SS
+    TOT --> DE
+    TOT --> NE
+    TOT --> IV
+    TOT --> TO
+    DE --> SE
+    DE --> SS
+    DE --> NE
+    NE -.->|"lee"| SE
+    NE -.->|"lee"| SS
+    NE --> IV
+    IV --> TO
+    TO -.->|"lee"| NE
+    TO -.->|"lee"| IV
+
+    GP -.->|"solo carga el combo box"| CH
+    GC -.->|"solo carga el combo box"| CH
+
+    classDef pure fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+    class SE,SS,DE,NE,IV,TO pure;
+
+</div>
+<blockquote>
+<p>Las líneas discontinuas son <strong>lecturas</strong> de valores ya calculados, no llamadas de control: por eso se dibujan aparte y no cruzan el árbol principal.</p>
+</blockquote>
+<h3>3.2 Dominio — persistencia (DAO → conexión → BD)</h3>
+<div class="mermaid">
+%%{init: {'flowchart': {'nodeSpacing': 95, 'rankSpacing': 115, 'curve': 'basis'}}}%%
+flowchart TD
+    F["FormCine<br/>botones y grilla"]
+    PC["btnProbarConexion_Click"]
+
+    subgraph DAOPS["VentaDAO — metodos publicos"]
+        direction TB
+        INS["InsertarVenta(v)"]
+        LIS["ObtenerVentasDesconectado()"]
+        FIND["BuscarVentasPorCliente(f)"]
+        BYID["ObtenerVentaPorId(id)"]
+        UPT["ActualizarVenta(v)"]
+        ERA["EliminarVenta(id)"]
+        MET["ObtenerMetricas()"]
+    end
+
+    subgraph AYUDA["Apoyo interno del DAO"]
+        direction TB
+        PAR["CargarParametros()<br/>AddWithValue x14"]
+        ROLL["Revertir()<br/>Rollback tolerante"]
+        READ["LeerVenta(reader)"]
+    end
+
+    PROB["ConexionBD.ProbarConexion()"]
+    CON["ConexionBD.ObtenerConexion()"]
+    DB[("CineStarDB.dbo.Ventas")]
+
+    F --> INS
+    F --> LIS
+    F --> FIND
+    F --> BYID
+    F --> UPT
+    F --> ERA
+    F --> MET
+    INS --> PAR
+    UPT --> PAR
+    INS --> ROLL
+    UPT --> ROLL
+    BYID --> READ
+    INS --> CON
+    UPT --> CON
+    ERA --> CON
+    LIS --> CON
+    FIND --> CON
+    BYID --> CON
+    MET --> CON
+    PC --> PROB
+    PROB --> CON
+    CON --> DB
+
+    classDef data fill:#fff3e0,stroke:#ef6c00,color:#e65100;
+    class INS,LIS,FIND,BYID,UPT,ERA,MET,PAR,ROLL,READ,PROB,CON,DB data;
+
+</div>
+<hr />
+<h2>4. Secuencias de los flujos principales</h2>
+<h3>4.1 Arranque de la pantalla (<code>FormCine_Load</code>)</h3>
+<div class="mermaid">
+%%{init: {'sequence': {'diagramMarginX': 50, 'diagramMarginY': 25, 'actorMargin': 90, 'messageMargin': 45}}}%%
+sequenceDiagram
+    autonumber
+    participant Program as Program.cs
+    participant F as FormCine.cs
+    participant CA as CatalogoCine.cs
+    participant DAO as VentaDAO.cs
+    participant CB as ConexionBD.cs
+    participant DB as CineStarDB
+
+    Program->>F: new FormCine()
+    F->>F: InitializeComponent() (Designer)
+    F->>F: FormCine_Load
+    F->>CA: ObtenerPeliculas()
+    CA-->>F: string[] ordenado
+    F->>CA: ObtenerCombos()
+    CA-->>F: string[] ordenado
+    F->>F: ReiniciarResumen() -> labels en $ 0
+    F->>F: ConfigurarAyuda() -> Vincular() x6 -> MostrarEstado()
+    F->>DAO: ObtenerVentasDesconectado()
+    DAO->>CB: ObtenerConexion()
+    CB->>DB: Open()
+    DAO->>DB: SELECT Id, Cliente, ... ORDER BY Id DESC
+    DB-->>DAO: DataTable
+    DAO-->>F: DataTable
+    F->>F: ConfigurarColumnasGrilla() -> Titulo() x8
+    F->>DAO: ObtenerMetricas()
+    DAO->>CB: ObtenerConexion()
+    DAO->>DB: SELECT COUNT / SUM / AVG
+    DB-->>DAO: DataTable (1 fila)
+    DAO-->>F: DataTable
+    F->>F: ActualizarMetricas() -> 3 labels
+    F->>F: MostrarEstado("Listo...")
+
+</div>
+<h3>4.2 Cálculo en vivo (<code>Calculo_Changed</code>)</h3>
+<div class="mermaid">
+%%{init: {'sequence': {'diagramMarginX': 50, 'diagramMarginY': 25, 'actorMargin': 90, 'messageMargin': 45}}}%%
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant DS as Designer.cs
+    participant F as FormCine.cs
+    participant CA as CatalogoCine.cs
+    participant V as VentaCine.cs
+
+    U->>DS: cambia cboPelicula / cboCombo / txtCantidad / chkSocio
+    DS->>F: Calculo_Changed (4 eventos)
+    F->>F: if cargandoFormulario -> return
+    F->>F: ConstruirVenta() -> new DatosVenta
+    F->>CA: Calcular(datos)
+    CA->>CA: valida Pelicula / Combo / Cantidad (defaults)
+    CA->>V: new VentaCine(cliente, rut, socio, pelicula, precio, cantidad, combo, precioCombo)
+    V->>V: CalcularTotales()
+    V->>V: SubE, SubS, Desc, Neto, IVA, Total (6 metodos puros)
+    V-->>CA: VentaCine con montos
+    CA-->>F: VentaCine con montos
+    F->>F: MostrarResumen(v) -> 6 labels
+
+</div>
+<h3>4.3 Registrar una venta (<code>BtnRegistrar_Click</code>)</h3>
+<div class="mermaid">
+%%{init: {'sequence': {'diagramMarginX': 50, 'diagramMarginY': 25, 'actorMargin': 90, 'messageMargin': 45}}}%%
+sequenceDiagram
+    autonumber
+    participant U as Usuario
+    participant F as FormCine.cs
+    participant CA as CatalogoCine.cs
+    participant V as VentaCine.cs
+    participant DAO as VentaDAO.cs
+    participant CB as ConexionBD.cs
+    participant DB as CineStarDB
+
+    U->>F: click btnRegistrar
+    F->>F: DatosValidos() -> nombre, RUT, cantidad > 0
+    F->>F: ConstruirVenta() -> CatalogoCine.Calcular -> VentaCine.CalcularTotales
+    F->>F: MostrarResumen(venta)
+    F->>U: MessageBox "¿Registrar la venta? Total: $..."
+    U-->>F: Yes
+    F->>DAO: InsertarVenta(venta)
+    DAO->>CB: ObtenerConexion()
+    DAO->>DB: BEGIN TRANSACTION
+    DAO->>DAO: CargarParametros(cmd, v) -> AddWithValue x14
+    DAO->>DB: INSERT INTO dbo.Ventas (...) + SCOPE_IDENTITY()
+    DB-->>DAO: Id generado
+    DAO->>DAO: v.Id = Convert.ToInt32(resultado)
+    DAO->>DB: COMMIT
+    DAO-->>F: true
+    F->>U: MostrarEstado + MessageBox "Venta registrada"
+    F->>F: LimpiarFormulario() -> ReiniciarResumen()
+    F->>DAO: ObtenerVentasDesconectado() -> CargarVentas()
+    F->>DAO: ObtenerMetricas() -> ActualizarMetricas()
+
+</div>
+<blockquote>
+<p>Si falla: <code>Revertir(tran)</code> → <code>Rollback()</code> tolerante y la excepción se propaga al <code>catch</code> del botón.</p>
+</blockquote>
+<h3>4.4 Actualizar / Eliminar / Buscar</h3>
+<div class="mermaid">
+%%{init: {'sequence': {'diagramMarginX': 50, 'diagramMarginY': 25, 'actorMargin': 90, 'messageMargin': 45}}}%%
+sequenceDiagram
+    autonumber
+    participant F as FormCine.cs
+    participant DAO as VentaDAO.cs
+    participant CB as ConexionBD.cs
+    participant DB as CineStarDB
+
+    Note over F,DB: ACTUALIZAR
+    F->>F: btnActualizar_Click -> lee txtId -> DatosValidos -> ConstruirVenta
+    F->>DAO: ActualizarVenta(venta con Id)
+    DAO->>CB: ObtenerConexion()
+    DAO->>DB: BEGIN TRAN -> UPDATE ... WHERE Id=@Id -> COMMIT
+    DAO-->>F: filas afectadas > 0
+    F->>DAO: ObtenerVentasDesconectado() + ObtenerMetricas()
+
+    Note over F,DB: ELIMINAR
+    F->>F: btnEliminar_Click -> confirma -> lee txtId
+    F->>DAO: EliminarVenta(id)
+    DAO->>CB: ObtenerConexion()
+    DAO->>DB: DELETE FROM dbo.Ventas WHERE Id=@Id
+    DAO-->>F: filas afectadas > 0
+    F->>F: LimpiarFormulario() + recarga grilla y metricas
+
+    Note over F,DB: BUSCAR (cada tecla)
+    F->>F: txtBuscar_TextChanged
+    alt filtro vacio
+        F->>DAO: ObtenerVentasDesconectado()
+    else con texto
+        F->>DAO: BuscarVentasPorCliente(filtro)
+        DAO->>DB: SELECT ... WHERE Cliente LIKE @Filtro
+    end
+    DAO-->>F: DataTable
+    F->>F: ConfigurarColumnasGrilla() -> Titulo() x8
+
+    Note over F,DB: CARGAR DETALLE AL HACER CLIC EN FILA
+    F->>F: dgvVentas_CellClick -> lee columna Id
+    F->>DAO: ObtenerVentaPorId(id)
+    DAO->>DB: SELECT 15 columnas WHERE Id=@Id
+    DAO->>DAO: LeerVenta(reader) -> object initializer de VentaCine
+    DAO-->>F: VentaCine ( SIN recalcular )
+    F->>F: LlenaForm(v) -> MostrarResumen(v) -> MostrarEstado(...)
+
+</div>
+<h3>4.5 Prueba de conexión</h3>
+<div class="mermaid">
+%%{init: {'sequence': {'diagramMarginX': 50, 'diagramMarginY': 25, 'actorMargin': 90, 'messageMargin': 45}}}%%
+sequenceDiagram
+    participant U as Usuario
+    participant F as FormCine.cs
+    participant CB as ConexionBD.cs
+    participant DB as SQL Server
+
+    U->>F: click btnProbarConexion
+    F->>CB: ProbarConexion()
+    CB->>CB: ObtenerConexion() -> new SqlConnection + Open()
+    CB->>DB: Open()
+    alt exito
+        DB-->>CB: State = Open
+        CB-->>F: true
+    else SqlException
+        CB->>CB: Console.WriteLine(error) (invisible en WinForms)
+        CB-->>F: false
+    end
+    F->>CB: CadenaConexion (property)
+    F->>U: MessageBox con cadena + estado
+
+</div>
+<hr />
+<h2>5. Tabla de trazabilidad (función → llamada desde → llama a)</h2>
+<table>
+<thead>
+<tr>
+<th>Función</th>
+<th>Archivo</th>
+<th>Llamada desde</th>
+<th>Llama a</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Main()</code></td>
+<td><code>Program.cs</code></td>
+<td>Windows</td>
+<td><code>Application.Run(new FormCine())</code></td>
+</tr>
+<tr>
+<td><code>FormCine()</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>Program.Main</code></td>
+<td><code>InitializeComponent()</code></td>
+</tr>
+<tr>
+<td><code>FormCine_Load</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>Load</code>)</td>
+<td><code>ObtenerPeliculas</code>, <code>ObtenerCombos</code>, <code>ReiniciarResumen</code>, <code>ConfigurarAyuda</code>, <code>CargarVentas</code>, <code>ActualizarMetricas</code>, <code>MostrarEstado</code></td>
+</tr>
+<tr>
+<td><code>ConstruirVenta</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>Calculo_Changed</code>, <code>BtnRegistrar</code>, <code>btnActualizar</code></td>
+<td><code>CatalogoCine.DatosVenta</code>, <code>CatalogoCine.Calcular</code></td>
+</tr>
+<tr>
+<td><code>Calculo_Changed</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (4 eventos)</td>
+<td><code>ConstruirVenta</code>, <code>MostrarResumen</code></td>
+</tr>
+<tr>
+<td><code>MostrarResumen</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>Calculo_Changed</code>, <code>BtnRegistrar</code>, <code>LlenaForm</code></td>
+<td>6 labels</td>
+</tr>
+<tr>
+<td><code>DatosValidos</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>BtnRegistrar</code>, <code>btnActualizar</code></td>
+<td><code>MessageBox</code>, <code>Focus()</code></td>
+</tr>
+<tr>
+<td><code>BtnRegistrar_Click</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>Click</code>)</td>
+<td><code>DatosValidos</code>, <code>ConstruirVenta</code>, <code>MostrarResumen</code>, <code>VentaDAO.InsertarVenta</code>, <code>LimpiarFormulario</code>, <code>CargarVentas</code>, <code>ActualizarMetricas</code>, <code>MostrarEstado</code></td>
+</tr>
+<tr>
+<td><code>btnActualizar_Click</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>Click</code>)</td>
+<td><code>DatosValidos</code>, <code>ConstruirVenta</code>, <code>VentaDAO.ActualizarVenta</code>, <code>CargarVentas</code>, <code>ActualizarMetricas</code></td>
+</tr>
+<tr>
+<td><code>btnEliminar_Click</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>Click</code>)</td>
+<td><code>VentaDAO.EliminarVenta</code>, <code>LimpiarFormulario</code>, <code>CargarVentas</code>, <code>ActualizarMetricas</code></td>
+</tr>
+<tr>
+<td><code>btnTodos_Click</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>Click</code>)</td>
+<td><code>CargarVentas</code>, <code>MostrarEstado</code></td>
+</tr>
+<tr>
+<td><code>btnProbarConexion_Click</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>Click</code>)</td>
+<td><code>ConexionBD.ProbarConexion</code>, <code>CadenaConexion</code>, <code>MostrarEstado</code></td>
+</tr>
+<tr>
+<td><code>btnSalir_Click</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>Click</code>)</td>
+<td><code>Close()</code></td>
+</tr>
+<tr>
+<td><code>txtBuscar_TextChanged</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>TextChanged</code>)</td>
+<td><code>ObtenerVentasDesconectado</code> o <code>BuscarVentasPorCliente</code>, <code>ConfigurarColumnasGrilla</code></td>
+</tr>
+<tr>
+<td><code>CargarVentas</code></td>
+<td><code>FormCine.cs</code></td>
+<td>5 lugares</td>
+<td><code>VentaDAO.ObtenerVentasDesconectado</code>, <code>ConfigurarColumnasGrilla</code>, <code>MostrarEstado</code></td>
+</tr>
+<tr>
+<td><code>ConfigurarColumnasGrilla</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>CargarVentas</code>, <code>txtBuscar_TextChanged</code></td>
+<td><code>Titulo</code> ×8</td>
+</tr>
+<tr>
+<td><code>dgvVentas_CellClick</code></td>
+<td><code>FormCine.cs</code></td>
+<td>Designer (<code>CellClick</code>)</td>
+<td><code>VentaDAO.ObtenerVentaPorId</code>, <code>LlenaForm</code></td>
+</tr>
+<tr>
+<td><code>LlenaForm</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>dgvVentas_CellClick</code></td>
+<td><code>MostrarResumen</code>, <code>MostrarEstado</code></td>
+</tr>
+<tr>
+<td><code>LimpiarFormulario</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>BtnRegistrar</code>, <code>btnEliminar</code></td>
+<td><code>ReiniciarResumen</code></td>
+</tr>
+<tr>
+<td><code>ActualizarMetricas</code></td>
+<td><code>FormCine.cs</code></td>
+<td>4 lugares</td>
+<td><code>VentaDAO.ObtenerMetricas</code>, <code>MostrarEstado</code></td>
+</tr>
+<tr>
+<td><code>ConfigurarAyuda</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>FormCine_Load</code></td>
+<td><code>Vincular</code> ×6</td>
+</tr>
+<tr>
+<td><code>Vincular</code></td>
+<td><code>FormCine.cs</code></td>
+<td><code>ConfigurarAyuda</code></td>
+<td><code>MostrarEstado</code> (lambdas MouseEnter/Leave)</td>
+</tr>
+<tr>
+<td><code>MostrarEstado</code></td>
+<td><code>FormCine.cs</code></td>
+<td>casi todos</td>
+<td>actualiza <code>lblAyuda</code></td>
+</tr>
+<tr>
+<td><code>CatalogoCine.Calcular</code></td>
+<td><code>CatalogoCine.cs</code></td>
+<td><code>ConstruirVenta</code></td>
+<td>valida diccionarios → <code>new VentaCine(...)</code></td>
+</tr>
+<tr>
+<td><code>ObtenerPeliculas</code> / <code>ObtenerCombos</code></td>
+<td><code>CatalogoCine.cs</code></td>
+<td><code>FormCine_Load</code></td>
+<td><code>Keys.OrderBy().ToArray()</code></td>
+</tr>
+<tr>
+<td><code>VentaCine</code> ctor</td>
+<td><code>VentaCine.cs</code></td>
+<td><code>CatalogoCine.Calcular</code>, <code>VentaDAO.LeerVenta</code></td>
+<td><code>CalcularTotales()</code> (solo el ctor sobrecargado)</td>
+</tr>
+<tr>
+<td><code>CalcularTotales</code></td>
+<td><code>VentaCine.cs</code></td>
+<td>ctor sobrecargado</td>
+<td>los 6 métodos puros</td>
+</tr>
+<tr>
+<td><code>CalcularMontoDescuento</code></td>
+<td><code>VentaCine.cs</code></td>
+<td><code>CalcularTotales</code></td>
+<td><code>CalcularSubtotalEntradas</code>, <code>CalcularSubtotalSnacks</code></td>
+</tr>
+<tr>
+<td><code>CalcularNetoAfecto</code></td>
+<td><code>VentaCine.cs</code></td>
+<td><code>CalcularTotales</code></td>
+<td><code>SubE</code>, <code>SubS</code>, <code>Descuento</code></td>
+</tr>
+<tr>
+<td><code>CalcularMontoIVA</code></td>
+<td><code>VentaCine.cs</code></td>
+<td><code>CalcularTotales</code></td>
+<td><code>CalcularNetoAfecto</code></td>
+</tr>
+<tr>
+<td><code>CalcularTotal</code></td>
+<td><code>VentaCine.cs</code></td>
+<td><code>CalcularTotales</code></td>
+<td><code>Neto</code>, <code>IVA</code></td>
+</tr>
+<tr>
+<td><code>InsertarVenta</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>BtnRegistrar_Click</code></td>
+<td><code>ObtenerConexion</code>, <code>CargarParametros</code>, <code>Revertir</code>, <code>Commit</code></td>
+</tr>
+<tr>
+<td><code>ActualizarVenta</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>btnActualizar_Click</code></td>
+<td><code>ObtenerConexion</code>, <code>CargarParametros</code>, <code>Revertir</code>, <code>Commit</code></td>
+</tr>
+<tr>
+<td><code>EliminarVenta</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>btnEliminar_Click</code></td>
+<td><code>ObtenerConexion</code></td>
+</tr>
+<tr>
+<td><code>ObtenerVentasDesconectado</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>CargarVentas</code>, <code>txtBuscar</code></td>
+<td><code>ObtenerConexion</code>, <code>SqlDataAdapter.Fill</code></td>
+</tr>
+<tr>
+<td><code>BuscarVentasPorCliente</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>txtBuscar_TextChanged</code></td>
+<td><code>ObtenerConexion</code>, <code>LIKE @Filtro</code></td>
+</tr>
+<tr>
+<td><code>ObtenerVentaPorId</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>dgvVentas_CellClick</code></td>
+<td><code>ObtenerConexion</code>, <code>LeerVenta</code></td>
+</tr>
+<tr>
+<td><code>ObtenerMetricas</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>ActualizarMetricas</code></td>
+<td><code>ObtenerConexion</code>, <code>COUNT/SUM/AVG</code></td>
+</tr>
+<tr>
+<td><code>CargarParametros</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>InsertarVenta</code>, <code>ActualizarVenta</code></td>
+<td><code>AddWithValue</code> ×14</td>
+</tr>
+<tr>
+<td><code>LeerVenta</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>ObtenerVentaPorId</code></td>
+<td><code>new VentaCine { ... }</code> (object initializer)</td>
+</tr>
+<tr>
+<td><code>Revertir</code></td>
+<td><code>VentaDAO.cs</code></td>
+<td><code>InsertarVenta</code>, <code>ActualizarVenta</code></td>
+<td><code>tran.Rollback()</code></td>
+</tr>
+<tr>
+<td><code>ObtenerConexion</code></td>
+<td><code>ConexionBD.cs</code></td>
+<td>los 7 métodos del DAO + <code>ProbarConexion</code></td>
+<td><code>SqlConnection.Open()</code></td>
+</tr>
+<tr>
+<td><code>ProbarConexion</code></td>
+<td><code>ConexionBD.cs</code></td>
+<td><code>btnProbarConexion_Click</code></td>
+<td><code>ObtenerConexion</code>, <code>Console.WriteLine</code> si falla</td>
+</tr>
+<tr>
+<td><code>CadenaConexion</code></td>
+<td><code>ConexionBD.cs</code></td>
+<td><code>btnProbarConexion_Click</code></td>
+<td>devuelve <code>cadenaConexion</code></td>
+</tr>
+<tr>
+<td><code>InitializeComponent</code></td>
+<td><code>FormCine.Designer.cs</code></td>
+<td>ctor de <code>FormCine</code></td>
+<td>crea controles y cablea 13 eventos</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>6. Resumen en una frase</h2>
+<blockquote>
+<p><code>Program</code> llama a <code>FormCine</code>; el Designer le inyecta 13 eventos; <code>FormCine</code> calcula con <code>CatalogoCine</code> + <code>VentaCine</code> y persiste vía <code>VentaDAO</code>; el DAO abre conexiones con <code>ConexionBD</code> y habla con <code>CineStarDB</code>; después de cada escritura, <code>FormCine</code> vuelve a llamar a <code>CargarVentas</code> y <code>ActualizarMetricas</code>, y termina siempre en <code>MostrarEstado</code>.</p>
+</blockquote>
+<script src="mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'dark',
+  securityLevel: 'loose',
+  themeVariables: {
+    darkMode: true,
+    background: '#0d1117',
+    primaryColor: '#1f6feb',
+    primaryTextColor: '#c9d1d9',
+    lineColor: '#8b949e'
+  }
+});
+</script>
+</body>
+</html>

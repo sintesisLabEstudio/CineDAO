@@ -1,0 +1,1577 @@
+CodigoIntegrado.txt
+    RESUMEN DEL CODIGO COMPLETO - CINESTAR CONCEPCION (ADO.NET + DAO)
+        Actualizado: 2026-11-23
+        Fuente analizada: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional
+        Este archivo integra el resumen, el codigo completo, los scripts BAT y los scripts SQL del proyecto.
+        -------------------------------------------------------------------------------
+        1. CONFIGURACION DEL PROYECTO
+        -------------------------------------------------------------------------------
+        CineStarBD.csproj
+          OutputType        : WinExe
+          TargetFramework   : net10.0-windows
+          UseWindowsForms   : true
+          Nullable          : enable
+          ImplicitUsings    : enable
+          Paquete NuGet     : Microsoft.Data.SqlClient 7.1.2
+        Program.cs
+          [STAThread] Main() -> ApplicationConfiguration.Initialize()
+                             -> Application.Run(new FormCine())
+        Cadena de conexion (Dominio\ConexionBD.cs)
+          Server=.\SQLEXPRESS;Database=CineStarDB;Integrated Security=True;TrustServerCertificate=True;
+        -------------------------------------------------------------------------------
+        2. INVENTARIO DE ARCHIVOS FUENTE
+        -------------------------------------------------------------------------------
+        Codigo_Funcional\
+          Program.cs                     Punto de entrada WinForms
+          CineStarBD.csproj              Configuracion de compilacion
+          README.md                      Instrucciones de puesta en marcha
+          Dominio\
+            VentaCine.cs                 Entidad de venta (15 propiedades + 6 metodos puros)
+            CatalogoCine.cs              Cartelera, combos y DatosVenta
+            ConexionBD.cs                Helper estatico de conexion a SQLEXPRESS
+            VentaDAO.cs                  DAO de dbo.Ventas (CRUD + metricas)
+          Presentacion\
+            FormCine.cs                  Logica de la boleteria
+            FormCine.Designer.cs         Controles y cableado de eventos
+          BDcines\
+            scriptsSql\01..02_*.sql      Estructura y datos demo
+            comandos\01..07_*.bat        7 scripts operativos
+        -------------------------------------------------------------------------------
+        3. CAPA DE DOMINIO (Dominio/)
+        -------------------------------------------------------------------------------
+        VentaCine.cs
+          Propiedades: Id, Cliente, Rut, EsSocio, PeliculaTexto, PrecioPelicula,
+                       CantidadTickets, ComboNombre, PrecioCombo, SubtotalEntradas,
+                       SubtotalSnacks, MontoDescuento, NetoAfecto, MontoIva, TotalPagar.
+          Constructores: por defecto y sobrecargado con los datos de entrada.
+          Metodos puros: CalcularSubtotalEntradas, CalcularSubtotalSnacks,
+                         CalcularMontoDescuento, CalcularNetoAfecto, CalcularMontoIVA,
+                         CalcularTotal. Ademas CalcularTotales() materializa los valores.
+        CatalogoCine.cs
+          Peliculas: Aventura 2D 5000 / Ciencia Ficcion 3D 7000 / Drama Premium 6000 / Estreno VIP 9000.
+          Combos: Sin combo 0 / Clasico 3000 / Grande 4500 / Familiar 6000.
+          DatosPedido -> Calcular(datos) devuelve un VentaCine con todos los montos.
+          Reglas: 15% descuento socio, 19% IVA over neto.
+        ConexionBD.cs
+          CadenaConexion, ObtenerConexion(), ProbarConexion().
+        -------------------------------------------------------------------------------
+        4. CAPA DE ACCESO A DATOS
+        -------------------------------------------------------------------------------
+        VentaDAO.cs (7 metodos publicos + 3 privados)
+          InsertarVenta        INSERT + SCOPE_IDENTITY dentro de transaccion.
+          ObtenerVentasDesconectado   DataTable con JOIN a Clientes.
+          BuscarVentasPorCliente      LIKE parametrizado.
+          ObtenerPedidoPorId (ObtenerVentaPorId)  Entidad o null.
+          ActualizarVenta      UPDATE en transaccion.
+          EliminarVenta        DELETE fisico.
+          ObtenerMetricas      COUNT, SUM y AVG de TotalPagar.
+          Privados: ResolverIdCliente, CargarParametros, Revertir.
+        -------------------------------------------------------------------------------
+        5. CAPA DE PRESENTACION (Presentacion/)
+        -------------------------------------------------------------------------------
+        FormCine.cs
+          FormCine_Load        Carga combos desde CatalogoCine y lista ventas.
+          ConstruirPedido      DatosVenta -> CatalogoCine.Calcular.
+          Calculo_Changed      Recalcula en vivo al cambiar opciones.
+          BtnRegistrar_Click   Valida, confirma e inserta la venta.
+          btnActualizar_Click  UPDATE de la venta seleccionada.
+          btnEliminar_Click    DELETE con confirmacion.
+          txtBuscar_TextChanged / btnTodos_Click  Filtro y listado.
+          dgvVentas_CellClick  Carga el detalle en modo edicion.
+          ActualizarMetricas   Ventas, recaudado y promedio en tiempo real.
+          btnProbarConexion_Click / MostrarEstado / ConfigurarAyuda.
+        -------------------------------------------------------------------------------
+        6. BASE DE DATOS Y COMANDOS
+        -------------------------------------------------------------------------------
+        Modelo: dbo.Ventas con PK Id INT IDENTITY y 15 columnas.
+        Scripts: 01_Estructura_CineStarDB.sql (CREATE DATABASE + tabla).
+                 02_DatosDemo_CineStarDB.sql (4 ventas demo).
+        Comandos: 01 crear, 02 cargar, 03 estado, 04 tablas, 05 respaldo,
+                  06 vaciar, 07 desconectar. Todos contra .\SQLEXPRESS.
+        -------------------------------------------------------------------------------
+        7. FLUJOS PRINCIPALES
+        -------------------------------------------------------------------------------
+        Alta: validar cliente/RUT/cantidad -> CatalogoCine.Calcular -> confirmar ->
+              transaccion -> INSERT con SCOPE_IDENTITY -> COMMIT -> recargar grilla y metricas.
+        Edicion: clic en grilla -> ObtenerVentaPorId -> LlenaForm -> ActualizarVenta.
+        Baja: seleccionar fila -> confirmar -> EliminarVenta -> recargar.
+        -------------------------------------------------------------------------------
+        8. ARCHIVOS DE DOCUMENTACION
+        -------------------------------------------------------------------------------
+        documentacion\Documentacion_Tecnica_CineStar_...pdf / _dark.pdf
+        documentacion\CodigoIntegrado.txt  este archivo
+    CODIGO COMPLETO ESTRUCTURADO - CINESTAR CONCEPCION (ADO.NET + DAO)
+        Fuente: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional
+        Convenciones: ARCHIVO, RUTA, DESCRIPCION, CODIGO y referencias FX a funciones de otros archivos.
+        ARCHIVO: Program.cs
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\Program.cs
+        DESCRIPCION: Punto de entrada de la aplicacion WinForms.
+        CODIGO:
+            using System;
+            using System.Windows.Forms;
+            using CineStarBD.Presentacion;
+            namespace CineStarBD;
+            // Punto de entrada de la aplicacion WinForms.
+                CLASE: Program
+            static class Program
+            {
+                [STAThread] // Requerido por WinForms (modelo STA).
+                static void Main()
+                {
+                    ApplicationConfiguration.Initialize();
+                    Application.Run(new FormCine());
+                }
+            }
+        ARCHIVO: CineStarBD.csproj
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\CineStarBD.csproj
+        DESCRIPCION: Proyecto .NET 10 Windows Forms con Microsoft.Data.SqlClient.
+        CODIGO:
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <OutputType>WinExe</OutputType>
+                <TargetFramework>net10.0-windows</TargetFramework>
+                <Nullable>enable</Nullable>
+                <UseWindowsForms>true</UseWindowsForms>
+                <ImplicitUsings>enable</ImplicitUsings>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.2" />
+              </ItemGroup>
+              <ItemGroup>
+                <None Remove="BDcines\pruebaDao\**" />
+                <Compile Remove="BDcines\pruebaDao\**" />
+              </ItemGroup>
+            </Project>
+        ARCHIVO: VentaCine.cs
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\Dominio\VentaCine.cs
+        DESCRIPCION: Entidad de dominio con metodos puros de calculo.
+        CODIGO:
+            using System;
+            namespace CineStarBD.Dominio;
+            // Entidad de dominio: modela una venta de boleteria con propiedades encapsuladas,
+            // sobrecarga de constructores y metodos puros de calculo (sin efectos secundarios).
+                CLASE: VentaCine
+            public class VentaCine
+            {
+                public int Id { get; set; }                       // PK identity de dbo.Ventas.
+                public string Cliente { get; set; } = "";         // Nombre del cliente.
+                public string Rut { get; set; } = "";             // RUT del cliente.
+                public bool EsSocio { get; set; }                 // Socio CineClub: 15% de descuento.
+                public string PeliculaTexto { get; set; } = "";   // Pelicula elegida en cartelera.
+                public int PrecioPelicula { get; set; }           // Precio unitario de la entrada.
+                public int CantidadTickets { get; set; }          // Cantidad de entradas.
+                public string ComboNombre { get; set; } = "Sin combo"; // Combo de confiteria opcional.
+                public int PrecioCombo { get; set; }              // Precio del combo.
+                public int SubtotalEntradas { get; set; }         // PrecioPelicula * CantidadTickets.
+                public int SubtotalSnacks { get; set; }           // Precio del combo.
+                public int MontoDescuento { get; set; }           // 15% del subtotal si es socio.
+                public int NetoAfecto { get; set; }               // Subtotal - descuento.
+                public int MontoIva { get; set; }                 // 19% del neto.
+                public int TotalPagar { get; set; }               // Neto + IVA.
+                // Constructor por defecto (necesario para el data binding y los DAO).
+                public VentaCine() { }
+                // Constructor sobrecargado con los datos de entrada de la boleteria.
+                public VentaCine(string cliente, string rut, bool esSocio, string pelicula,
+                                 int precioPelicula, int cantidadTickets, string comboNombre, int precioCombo)
+                {
+                    Cliente = cliente;
+                    Rut = rut;
+                    EsSocio = esSocio;
+                    PeliculaTexto = pelicula;
+                    PrecioPelicula = precioPelicula;
+                    CantidadTickets = cantidadTickets;
+                    ComboNombre = comboNombre;
+                    PrecioCombo = precioCombo;
+                    CalcularTotales();
+                }
+                // Metodos puros: solo leen propiedades y devuelven un valor.
+                    METODO/FUNCION: public int CalcularSubtotalEntradas() => PrecioPelicula * CantidadTickets;
+                public int CalcularSubtotalEntradas() => PrecioPelicula * CantidadTickets;
+                    METODO/FUNCION: public int CalcularSubtotalSnacks() => PrecioCombo;
+                public int CalcularSubtotalSnacks() => PrecioCombo;
+                    METODO/FUNCION: public int CalcularMontoDescuento()
+                public int CalcularMontoDescuento()
+                    => EsSocio ? (int)((CalcularSubtotalEntradas() + CalcularSubtotalSnacks()) * 0.15) : 0;
+                    METODO/FUNCION: public int CalcularNetoAfecto()
+                public int CalcularNetoAfecto()
+                    => CalcularSubtotalEntradas() + CalcularSubtotalSnacks() - CalcularMontoDescuento();
+                    METODO/FUNCION: public int CalcularMontoIVA() => (int)(CalcularNetoAfecto() * 0.19);
+                public int CalcularMontoIVA() => (int)(CalcularNetoAfecto() * 0.19);
+                    METODO/FUNCION: public int CalcularTotal() => CalcularNetoAfecto() + CalcularMontoIVA();
+                public int CalcularTotal() => CalcularNetoAfecto() + CalcularMontoIVA();
+                // Materializa los valores calculados en las propiedades de la entidad.
+                    METODO/FUNCION: public void CalcularTotales()
+                public void CalcularTotales()
+                {
+                    SubtotalEntradas = CalcularSubtotalEntradas();
+                    SubtotalSnacks = CalcularSubtotalSnacks();
+                    MontoDescuento = CalcularMontoDescuento();
+                    NetoAfecto = CalcularNetoAfecto();
+                    MontoIva = CalcularMontoIVA();
+                    TotalPagar = CalcularTotal();
+                }
+            }
+        ARCHIVO: CatalogoCine.cs
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\Dominio\CatalogoCine.cs
+        DESCRIPCION: Cartelera, combos y reglas de negocio.
+        CODIGO:
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace CineStarBD.Dominio;
+            // Reglas de negocio y catalogos de la boleteria (sin dependencia de WinForms).
+            // Equivale a CalculadoraPedido en el proyecto Pizzeria.
+                CLASE: CatalogoCine
+            public static class CatalogoCine
+            {
+                private const string PeliculaPorDefecto = "Aventura 2D";
+                private const string ComboPorDefecto = "Sin combo";
+                // Cartelera: pelicula -> precio unitario de la entrada (CLP).
+                public static readonly IReadOnlyDictionary<string, int> Peliculas = new Dictionary<string, int>
+                {
+                    { "Aventura 2D", 5000 },
+                    { "Ciencia Ficcion 3D", 7000 },
+                    { "Drama Premium", 6000 },
+                    { "Estreno VIP", 9000 }
+                };
+                // Confiteria: combo -> recargo (CLP).
+                public static readonly IReadOnlyDictionary<string, int> Combos = new Dictionary<string, int>
+                {
+                    { "Sin combo", 0 },
+                    { "Combo Clasico", 3000 },
+                    { "Combo Grande", 4500 },
+                    { "Combo Familiar", 6000 }
+                };
+                // Datos de entrada tomados de la interfaz.
+                CLASE: DatosVenta
+                public sealed class DatosVenta
+                {
+                    public string Cliente { get; set; } = "";
+                    public string Rut { get; set; } = "";
+                    public bool EsSocio { get; set; }
+                    public string Pelicula { get; set; } = PeliculaPorDefecto;
+                    public string Combo { get; set; } = ComboPorDefecto;
+                    public int CantidadTickets { get; set; } = 1;
+                }
+                // Aplica las reglas y devuelve una VentaCine con todos los montos calculados.
+                    METODO/FUNCION: public static VentaCine Calcular(DatosVenta d)
+                public static VentaCine Calcular(DatosVenta d)
+                {
+                    string pelicula = Peliculas.ContainsKey(d.Pelicula) ? d.Pelicula : PeliculaPorDefecto;
+                    string combo = Combos.ContainsKey(d.Combo) ? d.Combo : ComboPorDefecto;
+                    int cantidad = d.CantidadTickets > 0 ? d.CantidadTickets : 1;
+                    return new VentaCine(d.Cliente, d.Rut, d.EsSocio, pelicula,
+                                         Peliculas[pelicula], cantidad, combo, Combos[combo]);
+                }
+                // Utilidad para la grilla: nombres de peliculas ordenados.
+                    METODO/FUNCION: public static string[] ObtenerPeliculas() => Peliculas.Keys.OrderBy(x => x).ToArray();
+                public static string[] ObtenerPeliculas() => Peliculas.Keys.OrderBy(x => x).ToArray();
+                // Utilidad para la grilla: nombres de combos ordenados.
+                    METODO/FUNCION: public static string[] ObtenerCombos() => Combos.Keys.OrderBy(x => x).ToArray();
+                public static string[] ObtenerCombos() => Combos.Keys.OrderBy(x => x).ToArray();
+            }
+        ARCHIVO: ConexionBD.cs
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\Dominio\ConexionBD.cs
+        DESCRIPCION: Helper estatico de conexion a SQLEXPRESS.
+        CODIGO:
+            using System;
+            using System.Data;
+            using Microsoft.Data.SqlClient;
+            namespace CineStarBD.Dominio;
+            // Helper estatico: unica clase que conoce la cadena de conexion.
+            // Solo los DAO la usan; la capa de presentacion nunca abre conexiones.
+                CLASE: ConexionBD
+            public static class ConexionBD
+            {
+                // SQL Server Express segun la documentacion tecnica del caso CineStar.
+                private static readonly string cadenaConexion =
+                    @"Server=.\SQLEXPRESS;Database=CineStarDB;Integrated Security=True;TrustServerCertificate=True;";
+                public static string CadenaConexion => cadenaConexion;
+                // Abre y devuelve una conexion nueva. Quien la recibe debe liberarla con "using".
+                    METODO/FUNCION: public static SqlConnection ObtenerConexion()
+                public static SqlConnection ObtenerConexion()
+                {
+                    SqlConnection conexion = new SqlConnection(cadenaConexion);
+                    try
+                    {
+                        conexion.Open();
+                        return conexion;
+                    }
+                    catch
+                    {
+                        conexion.Dispose();
+                        throw;
+                    }
+                }
+                // Verifica que la base CineStarDB abra correctamente.
+                    METODO/FUNCION: public static bool ProbarConexion()
+                public static bool ProbarConexion()
+                {
+                    try
+                    {
+                        using (SqlConnection conexion = ObtenerConexion())
+                            return conexion.State == ConnectionState.Open;
+                    }
+                    catch (SqlException ex)
+                    {
+                        Console.WriteLine($"[Error de Conexion SQL]: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        ARCHIVO: VentaDAO.cs
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\Dominio\VentaDAO.cs
+        DESCRIPCION: DAO de dbo.Ventas con CRUD parametrizado y metricas.
+        CODIGO:
+            REFERENCIAS A FUNCIONES DE OTROS ARCHIVOS:
+                - ObtenerConexion | ConexionBD.cs | Abre y devuelve una SqlConnection nueva.
+            using System;
+            using System.Data;
+            using Microsoft.Data.SqlClient;
+            namespace CineStarBD.Dominio;
+            // DAO de dbo.Ventas: CRUD con consultas parametrizadas y transacciones.
+                CLASE: VentaDAO
+            public class VentaDAO
+            {
+                // Inserta una venta. El desglose se graba junto con la venta en una sola transaccion.
+                    METODO/FUNCION: public bool InsertarVenta(VentaCine v)
+                public bool InsertarVenta(VentaCine v)
+                {
+                    const string query = @"
+                        INSERT INTO dbo.Ventas
+                            (Cliente, Rut, EsSocio, PeliculaTexto, PrecioPelicula, CantidadTickets,
+                             ComboNombre, PrecioCombo, SubtotalEntradas, SubtotalSnacks,
+                             MontoDescuento, NetoAfecto, MontoIva, TotalPagar)
+                        VALUES
+                            (@Cliente, @Rut, @EsSocio, @PeliculaTexto, @PrecioPelicula, @CantidadTickets,
+                             @ComboNombre, @PrecioCombo, @SubtotalEntradas, @SubtotalSnacks,
+                             @MontoDescuento, @NetoAfecto, @MontoIva, @TotalPagar);
+                        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    using (SqlConnection conexion = ConexionBD.ObtenerConexion())
+                        // -> FX: ObtenerConexion | ConexionBD.cs | Abre y devuelve una SqlConnection nueva.
+                    using (SqlTransaction tran = conexion.BeginTransaction())
+                    {
+                        try
+                        {
+                            using (SqlCommand cmd = new SqlCommand(query, conexion, tran))
+                            {
+                                CargarParametros(cmd, v);
+                                object? resultado = cmd.ExecuteScalar();
+                                bool exito = resultado != null && resultado != DBNull.Value;
+                                if (exito)
+                                {
+                                    v.Id = Convert.ToInt32(resultado);
+                                    tran.Commit();
+                                }
+                                else
+                                {
+                                    Revertir(tran);
+                                }
+                                return exito;
+                            }
+                        }
+                        catch
+                        {
+                            Revertir(tran);
+                            throw;
+                        }
+                    }
+                }
+                // Devuelve el historial completo en un DataTable desconectado para el DataGridView.
+                    METODO/FUNCION: public DataTable ObtenerVentasDesconectado()
+                public DataTable ObtenerVentasDesconectado()
+                {
+                    DataTable dt = new DataTable();
+                    const string query = @"SELECT Id, Cliente, Rut, EsSocio, PeliculaTexto,
+                                                  CantidadTickets, ComboNombre, TotalPagar
+                                           FROM dbo.Ventas ORDER BY Id DESC;";
+                    using (SqlConnection conexion = ConexionBD.ObtenerConexion())
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(query, conexion))
+                    {
+                        adapter.Fill(dt);
+                    }
+                    return dt;
+                }
+                // Filtra por cliente usando LIKE (clausula parametrizada).
+                    METODO/FUNCION: public DataTable BuscarVentasPorCliente(string filtroCliente)
+                public DataTable BuscarVentasPorCliente(string filtroCliente)
+                {
+                    DataTable dt = new DataTable();
+                    const string query = @"SELECT Id, Cliente, Rut, EsSocio, PeliculaTexto,
+                                                  CantidadTickets, ComboNombre, TotalPagar
+                                           FROM dbo.Ventas WHERE Cliente LIKE @Filtro ORDER BY Id DESC;";
+                    using (SqlConnection conexion = ConexionBD.ObtenerConexion())
+                    using (SqlCommand cmd = new SqlCommand(query, conexion))
+                    {
+                        cmd.Parameters.AddWithValue("@Filtro", "%" + filtroCliente + "%");
+                        using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                    }
+                    return dt;
+                }
+                // Obtiene una venta completa por su Id, o null si no existe.
+                    METODO/FUNCION: public VentaCine? ObtenerVentaPorId(int id)
+                public VentaCine? ObtenerVentaPorId(int id)
+                {
+                    const string query = @"SELECT Id, Cliente, Rut, EsSocio, PeliculaTexto, PrecioPelicula,
+                                                  CantidadTickets, ComboNombre, PrecioCombo, SubtotalEntradas,
+                                                  SubtotalSnacks, MontoDescuento, NetoAfecto, MontoIva, TotalPagar
+                                           FROM dbo.Ventas WHERE Id = @Id;";
+                    using (SqlConnection conexion = ConexionBD.ObtenerConexion())
+                    using (SqlCommand cmd = new SqlCommand(query, conexion))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        using (SqlDataReader r = cmd.ExecuteReader())
+                        {
+                            return r.Read() ? LeerVenta(r) : null;
+                        }
+                    }
+                }
+                // Actualiza una venta existente dentro de una transaccion.
+                    METODO/FUNCION: public bool ActualizarVenta(VentaCine v)
+                public bool ActualizarVenta(VentaCine v)
+                {
+                    const string query = @"UPDATE dbo.Ventas SET
+                                             Cliente=@Cliente, Rut=@Rut, EsSocio=@EsSocio,
+                                             PeliculaTexto=@PeliculaTexto, PrecioPelicula=@PrecioPelicula,
+                                             CantidadTickets=@CantidadTickets, ComboNombre=@ComboNombre,
+                                             PrecioCombo=@PrecioCombo, SubtotalEntradas=@SubtotalEntradas,
+                                             SubtotalSnacks=@SubtotalSnacks, MontoDescuento=@MontoDescuento,
+                                             NetoAfecto=@NetoAfecto, MontoIva=@MontoIva, TotalPagar=@TotalPagar
+                                           WHERE Id=@Id;";
+                    using (SqlConnection conexion = ConexionBD.ObtenerConexion())
+                    using (SqlTransaction tran = conexion.BeginTransaction())
+                    {
+                        try
+                        {
+                            using (SqlCommand cmd = new SqlCommand(query, conexion, tran))
+                            {
+                                cmd.Parameters.AddWithValue("@Id", v.Id);
+                                CargarParametros(cmd, v);
+                                bool exito = cmd.ExecuteNonQuery() > 0;
+                                if (exito) tran.Commit();
+                                else Revertir(tran);
+                                return exito;
+                            }
+                        }
+                        catch
+                        {
+                            Revertir(tran);
+                            throw;
+                        }
+                    }
+                }
+                // Borrado fisico previa confirmacion en la interfaz.
+                    METODO/FUNCION: public bool EliminarVenta(int id)
+                public bool EliminarVenta(int id)
+                {
+                    const string query = "DELETE FROM dbo.Ventas WHERE Id=@Id;";
+                    using (SqlConnection conexion = ConexionBD.ObtenerConexion())
+                    using (SqlCommand cmd = new SqlCommand(query, conexion))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", id);
+                        return cmd.ExecuteNonQuery() > 0;
+                    }
+                }
+                // Metricas globales acumuladas en tiempo real.
+                    METODO/FUNCION: public DataTable ObtenerMetricas()
+                public DataTable ObtenerMetricas()
+                {
+                    DataTable dt = new DataTable();
+                    const string query = @"SELECT COUNT(*) AS TotalVentas,
+                                                  ISNULL(SUM(TotalPagar), 0) AS TotalRecaudado,
+                                                  ISNULL(AVG(TotalPagar), 0) AS PromedioVenta
+                                           FROM dbo.Ventas;";
+                    using (SqlConnection conexion = ConexionBD.ObtenerConexion())
+                    using (SqlDataAdapter adapter = new SqlDataAdapter(query, conexion))
+                    {
+                        adapter.Fill(dt);
+                    }
+                    return dt;
+                }
+                // ----------------------- Apoyo interno -----------------------
+                    METODO/FUNCION: private static VentaCine LeerVenta(SqlDataReader r) => new VentaCine
+                private static VentaCine LeerVenta(SqlDataReader r) => new VentaCine
+                {
+                    Id = Convert.ToInt32(r["Id"]),
+                    Cliente = r["Cliente"]?.ToString() ?? "",
+                    Rut = r["Rut"]?.ToString() ?? "",
+                    EsSocio = Convert.ToBoolean(r["EsSocio"]),
+                    PeliculaTexto = r["PeliculaTexto"]?.ToString() ?? "",
+                    PrecioPelicula = Convert.ToInt32(r["PrecioPelicula"]),
+                    CantidadTickets = Convert.ToInt32(r["CantidadTickets"]),
+                    ComboNombre = r["ComboNombre"]?.ToString() ?? "Sin combo",
+                    PrecioCombo = Convert.ToInt32(r["PrecioCombo"]),
+                    SubtotalEntradas = Convert.ToInt32(r["SubtotalEntradas"]),
+                    SubtotalSnacks = Convert.ToInt32(r["SubtotalSnacks"]),
+                    MontoDescuento = Convert.ToInt32(r["MontoDescuento"]),
+                    NetoAfecto = Convert.ToInt32(r["NetoAfecto"]),
+                    MontoIva = Convert.ToInt32(r["MontoIva"]),
+                    TotalPagar = Convert.ToInt32(r["TotalPagar"])
+                };
+                    METODO/FUNCION: private static void CargarParametros(SqlCommand cmd, VentaCine v)
+                private static void CargarParametros(SqlCommand cmd, VentaCine v)
+                {
+                    cmd.Parameters.AddWithValue("@Cliente", v.Cliente);
+                    cmd.Parameters.AddWithValue("@Rut", v.Rut);
+                    cmd.Parameters.AddWithValue("@EsSocio", v.EsSocio);
+                    cmd.Parameters.AddWithValue("@PeliculaTexto", v.PeliculaTexto);
+                    cmd.Parameters.AddWithValue("@PrecioPelicula", v.PrecioPelicula);
+                    cmd.Parameters.AddWithValue("@CantidadTickets", v.CantidadTickets);
+                    cmd.Parameters.AddWithValue("@ComboNombre", v.ComboNombre);
+                    cmd.Parameters.AddWithValue("@PrecioCombo", v.PrecioCombo);
+                    cmd.Parameters.AddWithValue("@SubtotalEntradas", v.SubtotalEntradas);
+                    cmd.Parameters.AddWithValue("@SubtotalSnacks", v.SubtotalSnacks);
+                    cmd.Parameters.AddWithValue("@MontoDescuento", v.MontoDescuento);
+                    cmd.Parameters.AddWithValue("@NetoAfecto", v.NetoAfecto);
+                    cmd.Parameters.AddWithValue("@MontoIva", v.MontoIva);
+                    cmd.Parameters.AddWithValue("@TotalPagar", v.TotalPagar);
+                }
+                // Rollback tolerante: si la transaccion ya termino, no oculta el error original.
+                    METODO/FUNCION: private static void Revertir(SqlTransaction tran)
+                private static void Revertir(SqlTransaction tran)
+                {
+                    try { tran.Rollback(); }
+                    catch (Exception) { /* la transaccion ya no esta activa */ }
+                }
+            }
+        ARCHIVO: FormCine.cs
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\Presentacion\FormCine.cs
+        DESCRIPCION: Logica de la boleteria.
+        CODIGO:
+            REFERENCIAS A FUNCIONES DE OTROS ARCHIVOS:
+                - ObtenerPeliculas | CatalogoCine.cs | Nombres de peliculas para el ComboBox.
+                - ObtenerCombos | CatalogoCine.cs | Nombres de combos para el ComboBox.
+                - Calcular | CatalogoCine.cs | Aplica reglas y devuelve un VentaCine con los montos.
+                - InsertarVenta | VentaDAO.cs | Inserta la venta en una transaccion.
+                - ActualizarVenta | VentaDAO.cs | Actualiza la venta en transaccion.
+                - EliminarVenta | VentaDAO.cs | Borrado fisico por ID.
+                - ProbarConexion | ConexionBD.cs | Verifica que CineStarDB abra correctamente.
+                - CadenaConexion | ConexionBD.cs | Expone la cadena de conexion unica.
+                - ObtenerVentasDesconectado | VentaDAO.cs | Historial para el DataGridView.
+                - BuscarVentasPorCliente | VentaDAO.cs | Filtra ventas por cliente con LIKE.
+                - ObtenerVentaPorId | VentaDAO.cs | Devuelve la venta completa o null.
+                - ObtenerMetricas | VentaDAO.cs | Ventas, recaudado y promedio.
+            using System;
+            using System.Data;
+            using System.Linq;
+            using System.Windows.Forms;
+            using CineStarBD.Dominio;
+            namespace CineStarBD.Presentacion;
+            // Formulario principal de gestion de ventas de boleteria.
+                CLASE: FormCine
+            public partial class FormCine : Form
+            {
+                private readonly VentaDAO ventaDao = new VentaDAO();
+                private bool cargandoFormulario = false; // Evita recalcular mientras se cargan o limpian los controles.
+                public FormCine()
+                {
+                    InitializeComponent();
+                }
+                // ---------------------------- CARGA ----------------------------
+                    METODO/FUNCION: private void FormCine_Load(object? sender, EventArgs e)
+                private void FormCine_Load(object? sender, EventArgs e)
+                {
+                    cargandoFormulario = true;
+                    cboPelicula.Items.Clear();
+                    cboPelicula.Items.AddRange(CatalogoCine.ObtenerPeliculas());
+                        // -> FX: ObtenerPeliculas | CatalogoCine.cs | Nombres de peliculas para el ComboBox.
+                    cboPelicula.SelectedItem = "Aventura 2D";
+                    cboCombo.Items.Clear();
+                    cboCombo.Items.AddRange(CatalogoCine.ObtenerCombos());
+                        // -> FX: ObtenerCombos | CatalogoCine.cs | Nombres de combos para el ComboBox.
+                    cboCombo.SelectedItem = "Sin combo";
+                    txtCantidad.Text = "1";
+                    ReiniciarResumen();
+                    cargandoFormulario = false;
+                    ConfigurarAyuda();
+                    CargarVentas();
+                    ActualizarMetricas();
+                    MostrarEstado("Listo. Ingrese los datos de la venta.");
+                }
+                // -------------------------- CALCULOS ---------------------------
+                    METODO/FUNCION: private VentaCine ConstruirVenta()
+                private VentaCine ConstruirVenta()
+                {
+                    var datos = new CatalogoCine.DatosVenta
+                    {
+                        Cliente = txtCliente.Text.Trim(),
+                        Rut = txtRut.Text.Trim(),
+                        EsSocio = chkSocio.Checked,
+                        Pelicula = cboPelicula.Text,
+                        Combo = cboCombo.Text,
+                        CantidadTickets = int.TryParse(txtCantidad.Text.Trim(), out int n) ? n : 1
+                    };
+                    return CatalogoCine.Calcular(datos);
+                        // -> FX: Calcular | CatalogoCine.cs | Aplica reglas y devuelve un VentaCine con los montos.
+                }
+                // Recalcula el detalle de pago cada vez que cambia una opcion relevante.
+                    METODO/FUNCION: private void Calculo_Changed(object? sender, EventArgs e)
+                private void Calculo_Changed(object? sender, EventArgs e)
+                {
+                    if (cargandoFormulario) return;
+                    MostrarResumen(ConstruirVenta());
+                }
+                    METODO/FUNCION: private void MostrarResumen(VentaCine v)
+                private void MostrarResumen(VentaCine v)
+                {
+                    lblSubtotalValor.Text = $"$ {v.SubtotalEntradas:N0} CLP";
+                    lblSnacksValor.Text = $"$ {v.SubtotalSnacks:N0} CLP";
+                    lblDescuentoValor.Text = $"- $ {v.MontoDescuento:N0} CLP";
+                    lblNetoValor.Text = $"$ {v.NetoAfecto:N0} CLP";
+                    lblIvaValor.Text = $"+ $ {v.MontoIva:N0} CLP";
+                    lblTotalValor.Text = $"$ {v.TotalPagar:N0} CLP";
+                }
+                    METODO/FUNCION: private void ReiniciarResumen()
+                private void ReiniciarResumen()
+                {
+                    lblSubtotalValor.Text = "$ 0 CLP";
+                    lblSnacksValor.Text = "$ 0 CLP";
+                    lblDescuentoValor.Text = "- $ 0 CLP";
+                    lblNetoValor.Text = "$ 0 CLP";
+                    lblIvaValor.Text = "+ $ 0 CLP";
+                    lblTotalValor.Text = "$ 0 CLP";
+                }
+                // Valida nombre, RUT y cantidad de entradas (int.TryParse).
+                    METODO/FUNCION: private bool DatosValidos()
+                private bool DatosValidos()
+                {
+                    if (string.IsNullOrWhiteSpace(txtCliente.Text))
+                    {
+                        MessageBox.Show("Ingrese el nombre del cliente.", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtCliente.Focus();
+                        return false;
+                    }
+                    if (string.IsNullOrWhiteSpace(txtRut.Text))
+                    {
+                        MessageBox.Show("Ingrese el RUT del cliente.", "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtRut.Focus();
+                        return false;
+                    }
+                    if (!int.TryParse(txtCantidad.Text.Trim(), out int cantidad) || cantidad <= 0)
+                    {
+                        MessageBox.Show("Ingrese una cantidad de entradas valida (numero entero mayor que cero).",
+                                        "Validacion", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtCantidad.Focus();
+                        return false;
+                    }
+                    return true;
+                }
+                // --------------------------- BOTONES --------------------------
+                    METODO/FUNCION: private void BtnRegistrar_Click(object? sender, EventArgs e)
+                private void BtnRegistrar_Click(object? sender, EventArgs e)
+                {
+                    if (!DatosValidos()) return;
+                    VentaCine venta = ConstruirVenta();
+                    MostrarResumen(venta);
+                    var respuesta = MessageBox.Show($"¿Registrar la venta?\n\nTotal: $ {venta.TotalPagar:N0} CLP",
+                        "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (respuesta != DialogResult.Yes) return;
+                    try
+                    {
+                        if (ventaDao.InsertarVenta(venta))
+                        // -> FX: InsertarVenta | VentaDAO.cs | Inserta la venta en una transaccion.
+                        {
+                            MostrarEstado("Venta registrada correctamente.", true);
+                            MessageBox.Show("Venta registrada correctamente.", "Exito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            LimpiarFormulario();
+                            CargarVentas();
+                            ActualizarMetricas();
+                        }
+                        else
+                        {
+                            MostrarEstado("No se pudo registrar la venta.", false);
+                            MessageBox.Show("No se pudo registrar la venta.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MostrarEstado("Error al registrar la venta.", false);
+                        MessageBox.Show("Error al grabar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                    METODO/FUNCION: private void btnActualizar_Click(object? sender, EventArgs e)
+                private void btnActualizar_Click(object? sender, EventArgs e)
+                {
+                    if (!int.TryParse(txtId.Text.Trim(), out int id) || id <= 0)
+                    {
+                        MessageBox.Show("Seleccione una venta de la tabla para actualizar.", "Validacion",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    if (!DatosValidos()) return;
+                    try
+                    {
+                        VentaCine venta = ConstruirVenta();
+                        venta.Id = id;
+                        if (ventaDao.ActualizarVenta(venta))
+                        // -> FX: ActualizarVenta | VentaDAO.cs | Actualiza la venta en transaccion.
+                        {
+                            MostrarEstado("Venta actualizada correctamente.", true);
+                            MessageBox.Show("Venta actualizada correctamente.", "Exito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            CargarVentas();
+                            ActualizarMetricas();
+                        }
+                        else
+                        {
+                            MessageBox.Show("No se pudo actualizar la venta.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error al actualizar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                    METODO/FUNCION: private void btnEliminar_Click(object? sender, EventArgs e)
+                private void btnEliminar_Click(object? sender, EventArgs e)
+                {
+                    if (!int.TryParse(txtId.Text.Trim(), out int id) || id <= 0)
+                    {
+                        MessageBox.Show("Seleccione una venta de la tabla para anular.", "Validacion",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    var respuesta = MessageBox.Show("¿Está seguro de anular (borrar) este registro?", "Confirmar",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (respuesta != DialogResult.Yes) return;
+                    try
+                    {
+                        if (ventaDao.EliminarVenta(id))
+                        // -> FX: EliminarVenta | VentaDAO.cs | Borrado fisico por ID.
+                        {
+                            MostrarEstado("Registro anulado correctamente.", true);
+                            MessageBox.Show("Registro anulado.", "Exito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            LimpiarFormulario();
+                            CargarVentas();
+                            ActualizarMetricas();
+                        }
+                        else
+                        {
+                            MessageBox.Show("No se pudo anular el registro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error al anular: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                    METODO/FUNCION: private void btnTodos_Click(object? sender, EventArgs e)
+                private void btnTodos_Click(object? sender, EventArgs e)
+                {
+                    txtBuscar.Clear();
+                    CargarVentas();
+                    MostrarEstado("Historial completo cargado.", true);
+                }
+                    METODO/FUNCION: private void btnProbarConexion_Click(object? sender, EventArgs e)
+                private void btnProbarConexion_Click(object? sender, EventArgs e)
+                {
+                    bool ok = ConexionBD.ProbarConexion();
+                        // -> FX: ProbarConexion | ConexionBD.cs | Verifica que CineStarDB abra correctamente.
+                    MostrarEstado(ok ? "Conexion exitosa." : "No se pudo conectar a la base de datos.", ok);
+                    string detalle = "Cadena de conexion:\n" + ConexionBD.CadenaConexion +
+                        // -> FX: CadenaConexion | ConexionBD.cs | Expone la cadena de conexion unica.
+                                     "\n\nEstado: " + (ok ? "Conexion exitosa." : "No se pudo conectar.");
+                    MessageBox.Show(detalle, "Probar Conexion", MessageBoxButtons.OK,
+                                    ok ? MessageBoxIcon.Information : MessageBoxIcon.Error);
+                }
+                    METODO/FUNCION: private void btnSalir_Click(object? sender, EventArgs e)
+                private void btnSalir_Click(object? sender, EventArgs e)
+                {
+                    if (MessageBox.Show("¿Desea salir?", "Confirmar", MessageBoxButtons.YesNo,
+                                        MessageBoxIcon.Question) == DialogResult.Yes) Close();
+                }
+                    METODO/FUNCION: private void txtBuscar_TextChanged(object? sender, EventArgs e)
+                private void txtBuscar_TextChanged(object? sender, EventArgs e)
+                {
+                    try
+                    {
+                        string filtro = txtBuscar.Text.Trim();
+                        dgvVentas.DataSource = string.IsNullOrEmpty(filtro)
+                            ? ventaDao.ObtenerVentasDesconectado()
+                        // -> FX: ObtenerVentasDesconectado | VentaDAO.cs | Historial para el DataGridView.
+                            : ventaDao.BuscarVentasPorCliente(filtro);
+                        // -> FX: BuscarVentasPorCliente | VentaDAO.cs | Filtra ventas por cliente con LIKE.
+                        ConfigurarColumnasGrilla();
+                    }
+                    catch (Exception ex)
+                    {
+                        MostrarEstado("No se pudo filtrar el historial.", false);
+                        MessageBox.Show("No se pudo buscar.\n" + ex.Message, "Base de datos",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+                // ---------------------------- GRILLA --------------------------
+                    METODO/FUNCION: private void CargarVentas()
+                private void CargarVentas()
+                {
+                    try
+                    {
+                        dgvVentas.DataSource = ventaDao.ObtenerVentasDesconectado();
+                        ConfigurarColumnasGrilla();
+                    }
+                    catch (Exception ex)
+                    {
+                        MostrarEstado("No se pudieron cargar las ventas.", false);
+                        MessageBox.Show("No se pudieron cargar las ventas.\n" + ex.Message, "Base de datos",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+                    METODO/FUNCION: private void ConfigurarColumnasGrilla()
+                private void ConfigurarColumnasGrilla()
+                {
+                    Titulo("Id", "ID");
+                    Titulo("Cliente", "Cliente");
+                    Titulo("Rut", "RUT");
+                    Titulo("EsSocio", "Socio");
+                    Titulo("PeliculaTexto", "Pelicula");
+                    Titulo("CantidadTickets", "Entradas");
+                    Titulo("ComboNombre", "Combo");
+                    Titulo("TotalPagar", "Total a Pagar");
+                    if (dgvVentas.Columns["TotalPagar"] != null)
+                        dgvVentas.Columns["TotalPagar"]!.DefaultCellStyle.Format = "$#,##0";
+                }
+                    METODO/FUNCION: private void Titulo(string columna, string texto)
+                private void Titulo(string columna, string texto)
+                {
+                    var col = dgvVentas.Columns[columna];
+                    if (col != null) col.HeaderText = texto;
+                }
+                    METODO/FUNCION: private void dgvVentas_CellClick(object? sender, DataGridViewCellEventArgs e)
+                private void dgvVentas_CellClick(object? sender, DataGridViewCellEventArgs e)
+                {
+                    if (e.RowIndex < 0) return;
+                    var cell = dgvVentas.Rows[e.RowIndex].Cells["Id"];
+                    if (cell?.Value == null) return;
+                    if (!int.TryParse(cell.Value.ToString(), out int id)) return;
+                    try
+                    {
+                        VentaCine? v = ventaDao.ObtenerVentaPorId(id);
+                        // -> FX: ObtenerVentaPorId | VentaDAO.cs | Devuelve la venta completa o null.
+                        if (v != null) LlenaForm(v);
+                    }
+                    catch (Exception ex)
+                    {
+                        MostrarEstado("No se pudo cargar el detalle de la venta.", false);
+                        MessageBox.Show("No se pudo cargar la venta.\n" + ex.Message, "Error",
+                                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                    METODO/FUNCION: private void LlenaForm(VentaCine v)
+                private void LlenaForm(VentaCine v)
+                {
+                    cargandoFormulario = true;
+                    txtId.Text = v.Id.ToString();
+                    txtCliente.Text = v.Cliente;
+                    txtRut.Text = v.Rut;
+                    chkSocio.Checked = v.EsSocio;
+                    cboPelicula.SelectedItem = v.PeliculaTexto;
+                    if (cboPelicula.SelectedIndex < 0) cboPelicula.Text = v.PeliculaTexto;
+                    cboCombo.SelectedItem = v.ComboNombre;
+                    if (cboCombo.SelectedIndex < 0) cboCombo.Text = v.ComboNombre;
+                    txtCantidad.Text = v.CantidadTickets.ToString();
+                    cargandoFormulario = false;
+                    MostrarResumen(v);
+                    MostrarEstado($"Venta N° {v.Id} cargada en modo edicion.", true);
+                }
+                    METODO/FUNCION: private void LimpiarFormulario()
+                private void LimpiarFormulario()
+                {
+                    cargandoFormulario = true;
+                    txtId.Clear();
+                    txtCliente.Clear();
+                    txtRut.Clear();
+                    chkSocio.Checked = false;
+                    cboPelicula.SelectedItem = "Aventura 2D";
+                    cboCombo.SelectedItem = "Sin combo";
+                    txtCantidad.Text = "1";
+                    ReiniciarResumen();
+                    cargandoFormulario = false;
+                    txtCliente.Focus();
+                }
+                // -------------------------- METRICAS --------------------------
+                    METODO/FUNCION: private void ActualizarMetricas()
+                private void ActualizarMetricas()
+                {
+                    try
+                    {
+                        DataTable dt = ventaDao.ObtenerMetricas();
+                        // -> FX: ObtenerMetricas | VentaDAO.cs | Ventas, recaudado y promedio.
+                        if (dt.Rows.Count == 0) return;
+                        DataRow r = dt.Rows[0];
+                        lblVentasMetric.Text = "Ventas registradas: " + Convert.ToInt32(r["TotalVentas"]);
+                        lblRecaudadoMetric.Text = "Total recaudado: $ " + Convert.ToDecimal(r["TotalRecaudado"]).ToString("N0") + " CLP";
+                        lblPromedioMetric.Text = "Promedio por venta: $ " + Convert.ToDecimal(r["PromedioVenta"]).ToString("N0") + " CLP";
+                    }
+                    catch (Exception)
+                    {
+                        MostrarEstado("No se pudieron actualizar las metricas.", false);
+                    }
+                }
+                // --------------------------- AYUDA ----------------------------
+                    METODO/FUNCION: private void ConfigurarAyuda()
+                private void ConfigurarAyuda()
+                {
+                    Vincular(btnRegistrar, "Calcula el total y registra la venta en la base de datos.");
+                    Vincular(btnActualizar, "Actualiza la venta seleccionada en la tabla.");
+                    Vincular(btnEliminar, "Anula (borra) la venta seleccionada previa confirmacion.");
+                    Vincular(btnTodos, "Muestra el historial completo de ventas.");
+                    Vincular(btnProbarConexion, "Prueba la conexion con CineStarDB en SQLEXPRESS.");
+                    Vincular(btnSalir, "Cierra la aplicacion.");
+                }
+                    METODO/FUNCION: private void Vincular(Button b, string ayuda)
+                private void Vincular(Button b, string ayuda)
+                {
+                    b.MouseEnter += (_, _) => MostrarEstado(ayuda);
+                    b.MouseLeave += (_, _) => MostrarEstado("Pase el mouse sobre un boton para ver ayuda.");
+                }
+                    METODO/FUNCION: private void MostrarEstado(string texto, bool? exito = null)
+                private void MostrarEstado(string texto, bool? exito = null)
+                {
+                    lblAyuda.Text = texto;
+                    lblAyuda.ForeColor = exito == true ? System.Drawing.Color.LightGreen
+                        : exito == false ? System.Drawing.Color.Salmon
+                        : System.Drawing.Color.FromArgb(230, 230, 230);
+                }
+            }
+        ARCHIVO: FormCine.Designer.cs
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\Presentacion\FormCine.Designer.cs
+        DESCRIPCION: Controles, eventos y diseno del formulario.
+        CODIGO:
+            #nullable enable
+            using System;
+            using System.Drawing;
+            using System.Windows.Forms;
+            namespace CineStarBD.Presentacion;
+            // Diseno del formulario principal de boleteria.
+            // Equivale a FormPedido.Designer.cs en el proyecto Pizzeria.
+                CLASE: FormCine
+            partial class FormCine
+            {
+                private System.ComponentModel.IContainer? components = null;
+                private GroupBox grpCliente = null!;
+                private Label lblCliente = null!;
+                private TextBox txtCliente = null!;
+                private Label lblRut = null!;
+                private TextBox txtRut = null!;
+                private CheckBox chkSocio = null!;
+                private GroupBox grpFuncion = null!;
+                private Label lblPelicula = null!;
+                private ComboBox cboPelicula = null!;
+                private Label lblCombo = null!;
+                private ComboBox cboCombo = null!;
+                private Label lblCantidad = null!;
+                private TextBox txtCantidad = null!;
+                private GroupBox grpResumen = null!;
+                private Label lblSubtotalNombre = null!;
+                private Label lblSubtotalValor = null!;
+                private Label lblSnacksNombre = null!;
+                private Label lblSnacksValor = null!;
+                private Label lblDescuentoNombre = null!;
+                private Label lblDescuentoValor = null!;
+                private Label lblNetoNombre = null!;
+                private Label lblNetoValor = null!;
+                private Label lblIvaNombre = null!;
+                private Label lblIvaValor = null!;
+                private Label lblTotalNombre = null!;
+                private Label lblTotalValor = null!;
+                private GroupBox grpMetricas = null!;
+                private Label lblVentasMetric = null!;
+                private Label lblRecaudadoMetric = null!;
+                private Label lblPromedioMetric = null!;
+                private Button btnRegistrar = null!;
+                private Button btnActualizar = null!;
+                private Button btnEliminar = null!;
+                private Button btnTodos = null!;
+                private Button btnProbarConexion = null!;
+                private Button btnSalir = null!;
+                private Label lblBuscar = null!;
+                private TextBox txtBuscar = null!;
+                private Label lblId = null!;
+                private TextBox txtId = null!;
+                private DataGridView dgvVentas = null!;
+                private Label lblAyuda = null!;
+                    METODO/FUNCION: protected override void Dispose(bool disposing)
+                protected override void Dispose(bool disposing)
+                {
+                    if (disposing && components != null) components.Dispose();
+                    base.Dispose(disposing);
+                }
+                    METODO/FUNCION: private void InitializeComponent()
+                private void InitializeComponent()
+                {
+                    components = new System.ComponentModel.Container();
+                    this.grpCliente = new GroupBox();
+                    this.lblCliente = new Label();
+                    this.txtCliente = new TextBox();
+                    this.lblRut = new Label();
+                    this.txtRut = new TextBox();
+                    this.chkSocio = new CheckBox();
+                    this.grpFuncion = new GroupBox();
+                    this.lblPelicula = new Label();
+                    this.cboPelicula = new ComboBox();
+                    this.lblCombo = new Label();
+                    this.cboCombo = new ComboBox();
+                    this.lblCantidad = new Label();
+                    this.txtCantidad = new TextBox();
+                    this.grpResumen = new GroupBox();
+                    this.lblSubtotalNombre = new Label();
+                    this.lblSubtotalValor = new Label();
+                    this.lblSnacksNombre = new Label();
+                    this.lblSnacksValor = new Label();
+                    this.lblDescuentoNombre = new Label();
+                    this.lblDescuentoValor = new Label();
+                    this.lblNetoNombre = new Label();
+                    this.lblNetoValor = new Label();
+                    this.lblIvaNombre = new Label();
+                    this.lblIvaValor = new Label();
+                    this.lblTotalNombre = new Label();
+                    this.lblTotalValor = new Label();
+                    this.grpMetricas = new GroupBox();
+                    this.lblVentasMetric = new Label();
+                    this.lblRecaudadoMetric = new Label();
+                    this.lblPromedioMetric = new Label();
+                    this.btnRegistrar = new Button();
+                    this.btnActualizar = new Button();
+                    this.btnEliminar = new Button();
+                    this.btnTodos = new Button();
+                    this.btnProbarConexion = new Button();
+                    this.btnSalir = new Button();
+                    this.lblBuscar = new Label();
+                    this.txtBuscar = new TextBox();
+                    this.lblId = new Label();
+                    this.txtId = new TextBox();
+                    this.dgvVentas = new DataGridView();
+                    this.lblAyuda = new Label();
+                    this.grpCliente.SuspendLayout();
+                    this.grpFuncion.SuspendLayout();
+                    this.grpResumen.SuspendLayout();
+                    this.grpMetricas.SuspendLayout();
+                    ((System.ComponentModel.ISupportInitialize)(this.dgvVentas)).BeginInit();
+                    this.SuspendLayout();
+                    // grpCliente
+                    this.grpCliente.Text = "Datos del Cliente";
+                    this.grpCliente.Location = new Point(10, 10);
+                    this.grpCliente.Size = new Size(470, 110);
+                    this.grpCliente.Controls.Add(this.lblCliente);
+                    this.grpCliente.Controls.Add(this.txtCliente);
+                    this.grpCliente.Controls.Add(this.lblRut);
+                    this.grpCliente.Controls.Add(this.txtRut);
+                    this.grpCliente.Controls.Add(this.chkSocio);
+                    this.lblCliente.Text = "Nombre:";
+                    this.lblCliente.Location = new Point(15, 25);
+                    this.lblCliente.Size = new Size(90, 20);
+                    this.txtCliente.Location = new Point(110, 22);
+                    this.txtCliente.Size = new Size(340, 23);
+                    this.lblRut.Text = "RUT:";
+                    this.lblRut.Location = new Point(15, 60);
+                    this.lblRut.Size = new Size(90, 20);
+                    this.txtRut.Location = new Point(110, 57);
+                    this.txtRut.Size = new Size(170, 23);
+                    this.chkSocio.Text = "Socio CineClub (15% dcto)";
+                    this.chkSocio.Location = new Point(300, 57);
+                    this.chkSocio.Size = new Size(155, 24);
+                    // grpFuncion
+                    this.grpFuncion.Text = "Funcion y Confiteria";
+                    this.grpFuncion.Location = new Point(500, 10);
+                    this.grpFuncion.Size = new Size(470, 110);
+                    this.grpFuncion.Controls.Add(this.lblPelicula);
+                    this.grpFuncion.Controls.Add(this.cboPelicula);
+                    this.grpFuncion.Controls.Add(this.lblCombo);
+                    this.grpFuncion.Controls.Add(this.cboCombo);
+                    this.grpFuncion.Controls.Add(this.lblCantidad);
+                    this.grpFuncion.Controls.Add(this.txtCantidad);
+                    this.lblPelicula.Text = "Pelicula:";
+                    this.lblPelicula.Location = new Point(15, 25);
+                    this.lblPelicula.Size = new Size(90, 20);
+                    this.cboPelicula.Location = new Point(110, 22);
+                    this.cboPelicula.Size = new Size(340, 23);
+                    this.cboPelicula.DropDownStyle = ComboBoxStyle.DropDownList;
+                    this.lblCombo.Text = "Combo:";
+                    this.lblCombo.Location = new Point(15, 60);
+                    this.lblCombo.Size = new Size(90, 20);
+                    this.cboCombo.Location = new Point(110, 57);
+                    this.cboCombo.Size = new Size(200, 23);
+                    this.cboCombo.DropDownStyle = ComboBoxStyle.DropDownList;
+                    this.lblCantidad.Text = "Entradas:";
+                    this.lblCantidad.Location = new Point(325, 60);
+                    this.lblCantidad.Size = new Size(70, 20);
+                    this.txtCantidad.Location = new Point(400, 57);
+                    this.txtCantidad.Size = new Size(50, 23);
+                    this.txtCantidad.Text = "1";
+                    // grpResumen
+                    this.grpResumen.Text = "Detalle de Pago";
+                    this.grpResumen.Location = new Point(10, 130);
+                    this.grpResumen.Size = new Size(470, 150);
+                    this.grpResumen.Controls.Add(this.lblSubtotalNombre);
+                    this.grpResumen.Controls.Add(this.lblSubtotalValor);
+                    this.grpResumen.Controls.Add(this.lblSnacksNombre);
+                    this.grpResumen.Controls.Add(this.lblSnacksValor);
+                    this.grpResumen.Controls.Add(this.lblDescuentoNombre);
+                    this.grpResumen.Controls.Add(this.lblDescuentoValor);
+                    this.grpResumen.Controls.Add(this.lblNetoNombre);
+                    this.grpResumen.Controls.Add(this.lblNetoValor);
+                    this.grpResumen.Controls.Add(this.lblIvaNombre);
+                    this.grpResumen.Controls.Add(this.lblIvaValor);
+                    this.grpResumen.Controls.Add(this.lblTotalNombre);
+                    this.grpResumen.Controls.Add(this.lblTotalValor);
+                    this.lblSubtotalNombre.Text = "Subtotal entradas:";
+                    this.lblSnacksNombre.Text = "Combo:";
+                    this.lblDescuentoNombre.Text = "Descuento socio (15%):";
+                    this.lblNetoNombre.Text = "Neto afecto:";
+                    this.lblIvaNombre.Text = "IVA chileno (19%):";
+                    this.lblTotalNombre.Text = "TOTAL A PAGAR:";
+                    this.lblSubtotalValor.Text = "$0 CLP";
+                    this.lblSnacksValor.Text = "$0 CLP";
+                    this.lblDescuentoValor.Text = "- $0 CLP";
+                    this.lblNetoValor.Text = "$0 CLP";
+                    this.lblIvaValor.Text = "+ $0 CLP";
+                    this.lblTotalValor.Text = "$0 CLP";
+                    this.lblSubtotalNombre.Location = new Point(15, 25);
+                    this.lblSnacksNombre.Location = new Point(15, 47);
+                    this.lblDescuentoNombre.Location = new Point(15, 69);
+                    this.lblNetoNombre.Location = new Point(15, 91);
+                    this.lblIvaNombre.Location = new Point(15, 113);
+                    this.lblTotalNombre.Location = new Point(250, 91);
+                    this.lblSubtotalValor.Location = new Point(200, 25);
+                    this.lblSnacksValor.Location = new Point(200, 47);
+                    this.lblDescuentoValor.Location = new Point(200, 69);
+                    this.lblNetoValor.Location = new Point(200, 91);
+                    this.lblIvaValor.Location = new Point(200, 113);
+                    this.lblTotalValor.Location = new Point(250, 113);
+                    this.lblTotalValor.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                    this.lblTotalValor.ForeColor = Color.Goldenrod;
+                    foreach (Control c in new Control[] { this.lblSubtotalValor, this.lblSnacksValor,
+                                this.lblDescuentoValor, this.lblNetoValor, this.lblIvaValor })
+                        c.Size = new Size(180, 20);
+                    this.lblTotalValor.Size = new Size(200, 20);
+                    // grpMetricas
+                    this.grpMetricas.Text = "Metricas Globales en Tiempo Real";
+                    this.grpMetricas.Location = new Point(500, 130);
+                    this.grpMetricas.Size = new Size(470, 150);
+                    this.grpMetricas.Controls.Add(this.lblVentasMetric);
+                    this.grpMetricas.Controls.Add(this.lblRecaudadoMetric);
+                    this.grpMetricas.Controls.Add(this.lblPromedioMetric);
+                    this.lblVentasMetric.Text = "Ventas registradas: 0";
+                    this.lblRecaudadoMetric.Text = "Total recaudado: $0 CLP";
+                    this.lblPromedioMetric.Text = "Promedio por venta: $0 CLP";
+                    this.lblVentasMetric.Location = new Point(20, 35);
+                    this.lblRecaudadoMetric.Location = new Point(20, 70);
+                    this.lblPromedioMetric.Location = new Point(20, 105);
+                    foreach (Control c in new Control[] { this.lblVentasMetric,
+                                this.lblRecaudadoMetric, this.lblPromedioMetric })
+                        c.Size = new Size(420, 25);
+                    // Botones
+                    this.btnRegistrar.Text = "Registrar Venta";
+                    this.btnRegistrar.Location = new Point(10, 295);
+                    this.btnRegistrar.Size = new Size(150, 35);
+                    this.btnActualizar.Text = "Actualizar Venta";
+                    this.btnActualizar.Location = new Point(170, 295);
+                    this.btnActualizar.Size = new Size(150, 35);
+                    this.btnEliminar.Text = "Anular Registro";
+                    this.btnEliminar.Location = new Point(330, 295);
+                    this.btnEliminar.Size = new Size(150, 35);
+                    this.btnTodos.Text = "Todas las Ventas";
+                    this.btnTodos.Location = new Point(490, 295);
+                    this.btnTodos.Size = new Size(150, 35);
+                    this.btnProbarConexion.Text = "Probar Conexion";
+                    this.btnProbarConexion.Location = new Point(650, 295);
+                    this.btnProbarConexion.Size = new Size(160, 35);
+                    this.btnSalir.Text = "Salir";
+                    this.btnSalir.Location = new Point(830, 295);
+                    this.btnSalir.Size = new Size(140, 35);
+                    // Busqueda e Id
+                    this.lblBuscar.Text = "Buscar cliente:";
+                    this.lblBuscar.Location = new Point(10, 345);
+                    this.lblBuscar.Size = new Size(100, 20);
+                    this.txtBuscar.Location = new Point(110, 342);
+                    this.txtBuscar.Size = new Size(300, 23);
+                    this.lblId.Text = "ID:";
+                    this.lblId.Location = new Point(430, 345);
+                    this.lblId.Size = new Size(30, 20);
+                    this.txtId.Location = new Point(465, 342);
+                    this.txtId.Size = new Size(70, 23);
+                    this.txtId.ReadOnly = true;
+                    // Grilla
+                    this.dgvVentas.Location = new Point(10, 375);
+                    this.dgvVentas.Size = new Size(960, 265);
+                    this.dgvVentas.ReadOnly = true;
+                    this.dgvVentas.AllowUserToAddRows = false;
+                    this.dgvVentas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+                    this.dgvVentas.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                    this.dgvVentas.BackgroundColor = Color.White;
+                    // Estado
+                    this.lblAyuda.Text = "Pase el mouse sobre un boton para ver ayuda.";
+                    this.lblAyuda.Location = new Point(10, 650);
+                    this.lblAyuda.Size = new Size(960, 25);
+                    // Formulario
+                    this.Text = "CineStar Concepcion - POS Boleteria";
+                    this.StartPosition = FormStartPosition.CenterScreen;
+                    this.ClientSize = new Size(980, 685);
+                    this.BackColor = SystemColors.Control;
+                    this.Controls.Add(this.grpCliente);
+                    this.Controls.Add(this.grpFuncion);
+                    this.Controls.Add(this.grpResumen);
+                    this.Controls.Add(this.grpMetricas);
+                    this.Controls.Add(this.btnRegistrar);
+                    this.Controls.Add(this.btnActualizar);
+                    this.Controls.Add(this.btnEliminar);
+                    this.Controls.Add(this.btnTodos);
+                    this.Controls.Add(this.btnProbarConexion);
+                    this.Controls.Add(this.btnSalir);
+                    this.Controls.Add(this.lblBuscar);
+                    this.Controls.Add(this.txtBuscar);
+                    this.Controls.Add(this.lblId);
+                    this.Controls.Add(this.txtId);
+                    this.Controls.Add(this.dgvVentas);
+                    this.Controls.Add(this.lblAyuda);
+                    // Eventos
+                    this.Load += FormCine_Load;
+                    this.btnRegistrar.Click += BtnRegistrar_Click;
+                    this.btnActualizar.Click += btnActualizar_Click;
+                    this.btnEliminar.Click += btnEliminar_Click;
+                    this.btnTodos.Click += btnTodos_Click;
+                    this.btnProbarConexion.Click += btnProbarConexion_Click;
+                    this.btnSalir.Click += btnSalir_Click;
+                    this.txtBuscar.TextChanged += txtBuscar_TextChanged;
+                    this.dgvVentas.CellClick += dgvVentas_CellClick;
+                    this.cboPelicula.SelectedIndexChanged += Calculo_Changed;
+                    this.cboCombo.SelectedIndexChanged += Calculo_Changed;
+                    this.txtCantidad.TextChanged += Calculo_Changed;
+                    this.chkSocio.CheckedChanged += Calculo_Changed;
+                    this.grpCliente.ResumeLayout();
+                    this.grpFuncion.ResumeLayout();
+                    this.grpResumen.ResumeLayout();
+                    this.grpMetricas.ResumeLayout();
+                    ((System.ComponentModel.ISupportInitialize)(this.dgvVentas)).EndInit();
+                    this.ResumeLayout();
+                }
+            }
+    CODIGOS BAT - CINESTAR CONCEPCION
+        Raiz: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos
+        Convenciones: ARCHIVO, RUTA, DESCRIPCION, CODIGO y PASO A PASO.
+        ARCHIVO: 01_creaBaseDatosCine-01.bat
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos\01_creaBaseDatosCine-01.bat
+        DESCRIPCION: Crea CineStarDB y la tabla dbo.Ventas si no existen.
+        CODIGO:
+            @echo off
+            setlocal EnableExtensions
+            set "BASE_DIR=%~dp0"
+            set "SQL_FILE=%BASE_DIR%..\scriptsSql\01_Estructura_CineStarDB.sql"
+            if not exist "%SQL_FILE%" set "SQL_FILE=%BASE_DIR%..\..\scriptsSql\01_Estructura_CineStarDB.sql"
+
+            where sqlcmd >nul 2>&1
+            if errorlevel 1 (
+                echo ERROR: no se encontro sqlcmd en el PATH.
+                echo Instale SQL Server Command Line Utilities y vuelva a intentar.
+                goto :fin
+            )
+
+            if not exist "%SQL_FILE%" (
+                echo ERROR: no se encontro el script 01_Estructura_CineStarDB.sql.
+                echo Ruta esperada: %SQL_FILE%
+                goto :fin
+            )
+
+            echo Creando CineStarDB y la tabla dbo.Ventas si no existen...
+            sqlcmd -S ".\SQLEXPRESS" -E -b -i "%SQL_FILE%"
+            if errorlevel 1 (
+                echo Error al crear la base o la tabla.
+            ) else (
+                echo Base y tabla listas.
+            )
+
+            :fin
+            endlocal
+            pause
+        PASO A PASO:
+            1. @echo off, setlocal EnableExtensions: oculta comandos, aísla variables y activa extensiones.
+            2. set BASE_DIR=%~dp0 y SQL_FILE: calculan la ruta del script SQL 01_Estructura_CineStarDB.sql.
+            3. where sqlcmd: verifica que la utilidad esté en el PATH; si no, avisa y salta a :fin.
+            4. if not exist: comprueba que el archivo SQL exista junto al .bat.
+            5. sqlcmd -S ".\SQLEXPRESS" -b -i: ejecuta el script; -b devuelve error si falla una instrucción.
+            6. if errorlevel 1 ... else: informa si la base y la tabla quedaron listas.
+            7. :fin, endlocal, pause: salida comun del script.
+        ARCHIVO: 02_cargaBaseDatos-02.bat
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos\02_cargaBaseDatos-02.bat
+        DESCRIPCION: Deja la base en MULTI_USER y carga datos demo.
+        CODIGO:
+            @echo off
+            setlocal EnableExtensions
+            set "BASE_DIR=%~dp0"
+            set "SQL_FILE=%BASE_DIR%..\scriptsSql\02_DatosDemo_CineStarDB.sql"
+            if not exist "%SQL_FILE%" set "SQL_FILE=%BASE_DIR%..\..\scriptsSql\02_DatosDemo_CineStarDB.sql"
+
+            where sqlcmd >nul 2>&1
+            if errorlevel 1 (
+                echo ERROR: no se encontro sqlcmd en el PATH.
+                goto :fin
+            )
+
+            if not exist "%SQL_FILE%" (
+                echo ERROR: no se encontro el script 02_DatosDemo_CineStarDB.sql.
+                goto :fin
+            )
+
+            echo Asegurando modo MULTI_USER...
+            sqlcmd -S ".\SQLEXPRESS" -E -d master -b -Q "ALTER DATABASE [CineStarDB] SET MULTI_USER WITH ROLLBACK IMMEDIATE;"
+            if errorlevel 1 goto :fin
+
+            echo Cargando datos demo (solo si la tabla esta vacia)...
+            sqlcmd -S ".\SQLEXPRESS" -E -d CineStarDB -b -i "%SQL_FILE%"
+            if errorlevel 1 (
+                echo Error al cargar los datos. Ejecute antes 01_creaBaseDatosCine-01.bat.
+            ) else (
+                echo Datos demo cargados.
+            )
+
+            :fin
+            endlocal
+            pause
+        PASO A PASO:
+            1. Preparacion de BASE_DIR y SQL_FILE apuntando a 02_DatosDemo_CineStarDB.sql.
+            2. where sqlcmd y if not exist: validaciones previas.
+            3. ALTER DATABASE ... MULTI_USER: asegura acceso normal.
+            4. sqlcmd -d CineStarDB -b -i: ejecuta la carga de datos demo (solo si la tabla está vacía).
+            5. if errorlevel: informa el resultado y sugiere ejecutar 01 si falla.
+            6. :fin, endlocal, pause: cierre.
+        ARCHIVO: 03_verEstadoConexion-03.bat
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos\03_verEstadoConexion-03.bat
+        DESCRIPCION: Diagnostica el estado de la base y cuenta ventas.
+        CODIGO:
+            @echo off
+            setlocal EnableExtensions
+
+            where sqlcmd >nul 2>&1
+            if errorlevel 1 (
+                echo ERROR: no se encontro sqlcmd en el PATH.
+                goto :fin
+            )
+
+            echo Comprobando estado de CineStarDB...
+            sqlcmd -S ".\SQLEXPRESS" -E -d master -b -W -Q "SELECT name AS BaseDatos, state_desc AS Estado, user_access_desc AS Acceso FROM sys.databases WHERE name = 'CineStarDB';"
+
+            echo Cantidad de registros:
+            sqlcmd -S ".\SQLEXPRESS" -E -d CineStarDB -b -W -Q "SELECT COUNT(*) AS Ventas FROM dbo.Ventas;"
+
+            :fin
+            endlocal
+            pause
+        PASO A PASO:
+            1. where sqlcmd: valida la herramienta.
+            2. SELECT desde sys.databases: muestra nombre, estado y modo de CineStarDB.
+            3. SELECT COUNT(*) FROM dbo.Ventas: indica cuántas ventas hay.
+            4. :fin, endlocal, pause: cierre.
+        ARCHIVO: 04_verTablas-04.bat
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos\04_verTablas-04.bat
+        DESCRIPCION: Muestra estructura y contenido de dbo.Ventas.
+        CODIGO:
+            @echo off
+            setlocal EnableExtensions
+
+            where sqlcmd >nul 2>&1
+            if errorlevel 1 (
+                echo ERROR: no se encontro sqlcmd en el PATH.
+                goto :fin
+            )
+
+            echo Estructura de dbo.Ventas:
+            sqlcmd -S ".\SQLEXPRESS" -E -d CineStarDB -b -W -Q "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dbo' AND TABLE_NAME='Ventas' ORDER BY ORDINAL_POSITION;"
+            if errorlevel 1 goto :error
+
+            echo Contenido de dbo.Ventas:
+            sqlcmd -S ".\SQLEXPRESS" -E -d CineStarDB -b -W -Q "SELECT Id, Cliente, Rut, EsSocio, PeliculaTexto, CantidadTickets, ComboNombre, TotalPagar FROM dbo.Ventas ORDER BY Id DESC;"
+            if errorlevel 1 goto :error
+            goto :fin
+
+            :error
+            echo Error al leer la base. Verifique con 03_verEstadoConexion-03.bat.
+
+            :fin
+            endlocal
+            pause
+        PASO A PASO:
+            1. where sqlcmd: validacion previa.
+            2. SELECT desde INFORMATION_SCHEMA.COLUMNS: estructura de dbo.Ventas.
+            3. if errorlevel 1 goto :error: si falla, salta al mensaje de error.
+            4. SELECT * FROM dbo.Ventas: contenido de la tabla.
+            5. :error / :fin: mensajes y cierre.
+        ARCHIVO: 05_respaldarBaseDatos-05.bat
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos\05_respaldarBaseDatos-05.bat
+        DESCRIPCION: Genera un respaldo .bak de CineStarDB.
+        CODIGO:
+            @echo off
+            setlocal EnableExtensions
+            set "RESPALDO_DIR=%~dp0respaldo"
+            set "BACKUP_FILE=%RESPALDO_DIR%\CineStarDB_Backup.bak"
+
+            where sqlcmd >nul 2>&1
+            if errorlevel 1 (
+                echo ERROR: no se encontro sqlcmd en el PATH.
+                goto :fin
+            )
+
+            if not exist "%RESPALDO_DIR%" mkdir "%RESPALDO_DIR%"
+            if exist "%BACKUP_FILE%" (
+                choice /c SN /m "Ya existe un respaldo. Desea sobrescribirlo"
+                if errorlevel 2 (
+                    echo Respaldo cancelado.
+                    goto :fin
+                )
+            )
+
+            echo Generando respaldo en %BACKUP_FILE% ...
+            sqlcmd -S ".\SQLEXPRESS" -E -b -Q "BACKUP DATABASE [CineStarDB] TO DISK = N'%BACKUP_FILE%' WITH INIT;"
+            if errorlevel 1 (
+                echo Error en el respaldo.
+            ) else (
+                echo Respaldo realizado correctamente.
+            )
+
+            :fin
+            endlocal
+            pause
+        PASO A PASO:
+            1. RESPALDO_DIR y BACKUP_FILE: definen la carpeta y el archivo .bak.
+            2. where sqlcmd: validacion previa.
+            3. mkdir si no existe la carpeta de respaldo.
+            4. choice /c SN: pregunta antes de sobrescribir un respaldo existente.
+            5. BACKUP DATABASE ... WITH INIT: genera el respaldo.
+            6. if errorlevel: informa exito o error.
+        ARCHIVO: 06_vaciaBaseDatos-06.bat
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos\06_vaciaBaseDatos-06.bat
+        DESCRIPCION: Vacia las ventas y reinicia el IDENTITY.
+        CODIGO:
+            @echo off
+            setlocal EnableExtensions
+
+            where sqlcmd >nul 2>&1
+            if errorlevel 1 (
+                echo ERROR: no se encontro sqlcmd en el PATH.
+                goto :fin
+            )
+
+            choice /c SN /m "Esto BORRA todas las ventas. Desea continuar"
+            if errorlevel 2 (
+                echo Operacion cancelada.
+                goto :fin
+            )
+
+            echo Vaciando dbo.Ventas y reiniciando el contador IDENTITY...
+            sqlcmd -S ".\SQLEXPRESS" -E -d CineStarDB -b -Q "SET XACT_ABORT ON; BEGIN TRANSACTION; TRUNCATE TABLE dbo.Ventas; DBCC CHECKIDENT ('dbo.Ventas', RESEED, 0); COMMIT TRANSACTION;"
+            if errorlevel 1 (
+                echo Error al vaciar la base. No se aplico ningun cambio.
+            ) else (
+                echo Base vaciada y contador reiniciado.
+            )
+
+            :fin
+            endlocal
+            pause
+        PASO A PASO:
+            1. where sqlcmd: validacion previa.
+            2. choice /c SN: confirma la operacion destructiva.
+            3. SET XACT_ABORT ON + BEGIN TRANSACTION: revierte todo si algo falla.
+            4. TRUNCATE TABLE dbo.Ventas: borra todas las filas.
+            5. DBCC CHECKIDENT RESEED 0: reinicia el contador Id.
+            6. COMMIT TRANSACTION: confirma los cambios.
+        ARCHIVO: 07_desconectaBase-07.bat
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\comandos\07_desconectaBase-07.bat
+        DESCRIPCION: Desadjunta la base conservando los archivos.
+        CODIGO:
+            @echo off
+            setlocal EnableExtensions
+
+            where sqlcmd >nul 2>&1
+            if errorlevel 1 (
+                echo ERROR: no se encontro sqlcmd en el PATH.
+                goto :fin
+            )
+
+            echo Desconectando CineStarDB de la instancia SQLEXPRESS...
+            sqlcmd -S ".\SQLEXPRESS" -E -d master -b -Q "ALTER DATABASE [CineStarDB] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; EXEC sp_detach_db 'CineStarDB';"
+            if errorlevel 1 (
+                echo Error al desconectar la base.
+            ) else (
+                echo Base desconectada. Los archivos .mdf y .ldf se conservan.
+            )
+
+            :fin
+            endlocal
+            pause
+        PASO A PASO:
+            1. where sqlcmd: validacion previa.
+            2. ALTER DATABASE ... SINGLE_USER WITH ROLLBACK IMMEDIATE: cierra conexiones.
+            3. EXEC sp_detach_db: desadjunta la base conservando .mdf y .ldf.
+            4. if errorlevel: informa exito o error.
+    CODIGOS COMPLETOS SQL - CINESTAR CONCEPCION
+        Raiz: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\scriptsSql
+        Convenciones: ARCHIVO, RUTA, DESCRIPCION, CODIGO y PASO A PASO.
+        ARCHIVO: 01_Estructura_CineStarDB.sql
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\scriptsSql\01_Estructura_CineStarDB.sql
+        DESCRIPCION: Estructura de la base.
+        CODIGO:
+            -- Estructura_CineStarDB.sql
+            -- Estructura de la base de datos CineStarDB
+
+            IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'CineStarDB')
+                CREATE DATABASE CineStarDB;
+            GO
+            USE CineStarDB;
+            GO
+            IF OBJECT_ID('dbo.Ventas', 'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.Ventas (
+                    Id INT IDENTITY(1,1) NOT NULL,
+                    Cliente NVARCHAR(100) NOT NULL,
+                    Rut NVARCHAR(20) NOT NULL,
+                    EsSocio BIT NOT NULL,
+                    PeliculaTexto NVARCHAR(150) NOT NULL,
+                    PrecioPelicula INT NOT NULL,
+                    CantidadTickets INT NOT NULL,
+                    ComboNombre NVARCHAR(50) NOT NULL,
+                    PrecioCombo INT NOT NULL,
+                    SubtotalEntradas INT NOT NULL,
+                    SubtotalSnacks INT NOT NULL,
+                    MontoDescuento INT NOT NULL,
+                    NetoAfecto INT NOT NULL,
+                    MontoIva INT NOT NULL,
+                    TotalPagar INT NOT NULL,
+                    CONSTRAINT PK_Ventas PRIMARY KEY CLUSTERED (Id ASC)
+                );
+            END
+            GO
+        PASO A PASO:
+            1. IF NOT EXISTS ... CREATE DATABASE: crea CineStarDB solo si no existe.
+            2. USE CineStarDB: fija el contexto de la base.
+            3. IF OBJECT_ID IS NULL + CREATE TABLE dbo.Ventas: crea la tabla con 15 columnas, PK Id IDENTITY y GO por lote.
+        ARCHIVO: 02_DatosDemo_CineStarDB.sql
+        RUTA: C:\desarrollo\Csoft\cine-BD-DAO\Codigo_Funcional\BDcines\scriptsSql\02_DatosDemo_CineStarDB.sql
+        DESCRIPCION: Datos de ejemplo.
+        CODIGO:
+            USE CineStarDB;
+            GO
+            IF (SELECT COUNT(*) FROM dbo.Ventas) = 0
+            BEGIN
+                INSERT INTO dbo.Ventas
+                    (Cliente, Rut, EsSocio, PeliculaTexto, PrecioPelicula, CantidadTickets,
+                     ComboNombre, PrecioCombo, SubtotalEntradas, SubtotalSnacks,
+                     MontoDescuento, NetoAfecto, MontoIva, TotalPagar)
+                VALUES
+                    (N'Maria Gonzalez', N'12.345.678-9', 1, N'Ciencia Ficcion 3D', 7000, 2,
+                     N'Combo Clasico', 3000, 14000, 3000, 2550, 14450, 2745, 17195),
+                    (N'Carlos Munoz', N'9.876.543-2', 0, N'Aventura 2D', 5000, 3,
+                     N'Sin combo', 0, 15000, 0, 0, 15000, 2850, 17850),
+                    (N'Ana Torres', N'7.654.321-0', 1, N'Estreno VIP', 9000, 1,
+                     N'Combo Familiar', 6000, 9000, 6000, 2250, 12750, 2422, 16172),
+                    (N'Luis Rojas', N'11.222.333-4', 0, N'Drama Premium', 6000, 2,
+                     N'Combo Grande', 4500, 12000, 4500, 0, 16500, 3135, 19635);
+            END
+            GO
+            SELECT COUNT(*) AS VentasDemo FROM dbo.Ventas;
+            GO
+        PASO A PASO:
+            1. USE CineStarDB: asegura el contexto correcto.
+            2. IF COUNT(*) = 0: solo inserta si la tabla está vacía.
+            3. INSERT INTO dbo.Ventas: carga cuatro ventas de ejemplo con su desglose.
+            4. SELECT COUNT(*): informa cuántas ventas quedaron.
